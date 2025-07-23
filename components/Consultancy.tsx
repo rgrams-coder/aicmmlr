@@ -1,0 +1,176 @@
+import React, { useState } from 'react';
+import { ConsultancyCase, ConsultancyStatus } from '../types';
+import PaperClipIcon from './icons/PaperClipIcon';
+import XCircleIcon from './icons/XCircleIcon';
+import BanknotesIcon from './icons/BanknotesIcon';
+import UploadIcon from './icons/UploadIcon';
+
+interface ConsultancyProps {
+  cases: ConsultancyCase[];
+  onBackToDashboard: () => void;
+  onSubmit: (data: { issue: string; document: File | null }) => void;
+  onPay: (caseId: string) => void;
+}
+
+const statusStyles: { [key in ConsultancyStatus]: string } = {
+  [ConsultancyStatus.PENDING]: 'bg-yellow-100 text-yellow-800',
+  [ConsultancyStatus.SOLUTION_READY]: 'bg-blue-100 text-blue-800',
+  [ConsultancyStatus.COMPLETED]: 'bg-green-100 text-green-800',
+};
+
+const statusText: { [key in ConsultancyStatus]: string } = {
+    [ConsultancyStatus.PENDING]: 'Pending Review',
+    [ConsultancyStatus.SOLUTION_READY]: 'Solution Ready',
+    [ConsultancyStatus.COMPLETED]: 'Completed',
+}
+
+const Consultancy: React.FC<ConsultancyProps> = ({ cases, onBackToDashboard, onSubmit, onPay }) => {
+  const [issue, setIssue] = useState('');
+  const [document, setDocument] = useState<File | null>(null);
+  const [fileName, setFileName] = useState('');
+  const [selectedCase, setSelectedCase] = useState<ConsultancyCase | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setDocument(file);
+      setFileName(file.name);
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!issue.trim()) return;
+    setIsSubmitting(true);
+    onSubmit({ issue, document });
+    setTimeout(() => {
+        setIssue('');
+        setDocument(null);
+        setFileName('');
+        setIsSubmitting(false);
+    }, 1000);
+  };
+  
+  const handlePayAndClose = (caseId: string) => {
+    onPay(caseId);
+    setSelectedCase(prev => prev ? { ...prev, isPaid: true, status: ConsultancyStatus.COMPLETED } : null);
+  }
+
+  const handleViewDetails = (caseToShow: ConsultancyCase) => {
+    setSelectedCase(caseToShow);
+  };
+
+  return (
+    <>
+      <div className="w-full max-w-6xl mx-auto animate-fade-in">
+        <div className="bg-white rounded-xl shadow-2xl overflow-hidden">
+          <header className="bg-brand-dark p-6">
+            <div className="flex items-center justify-between">
+              <h1 className="text-3xl font-bold text-white">Consultancy Services</h1>
+              <button onClick={onBackToDashboard} className="text-sm font-medium text-white bg-brand-secondary hover:bg-brand-primary px-4 py-2 rounded-md transition-colors">
+                Back to Dashboard
+              </button>
+            </div>
+          </header>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-5 min-h-[70vh]">
+            <aside className="lg:col-span-2 p-6 bg-brand-light border-b lg:border-r lg:border-b-0 border-gray-200">
+                <h2 className="text-xl font-bold text-brand-dark mb-4">Submit a New Query</h2>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label htmlFor="issue" className="block text-sm font-medium text-gray-700">Describe your issue</label>
+                        <textarea id="issue" name="issue" rows={6} value={issue} onChange={(e) => setIssue(e.target.value)} required className="mt-1 w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-brand-secondary focus:border-brand-secondary shadow-sm" placeholder="Please provide as much detail as possible..."></textarea>
+                    </div>
+                    <div>
+                        <label htmlFor="document-upload" className="block text-sm font-medium text-gray-700">Attach a document (optional)</label>
+                        <label className="relative mt-1 flex justify-center items-center w-full h-20 px-4 transition bg-white border-2 border-gray-300 border-dashed rounded-md appearance-none cursor-pointer hover:border-gray-400 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-brand-secondary">
+                             <div className="flex items-center space-x-2 text-gray-600">
+                                <PaperClipIcon className="h-6 w-6"/>
+                                <span className="font-medium">{fileName || "Upload a file (PDF, DOCX)"}</span>
+                             </div>
+                            <input id="document-upload" name="document-upload" type="file" className="sr-only" onChange={handleFileChange} />
+                        </label>
+                    </div>
+                    <button type="submit" disabled={!issue.trim() || isSubmitting} className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-accent hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-accent disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors">
+                        {isSubmitting ? 'Submitting...' : 'Submit for Expert Review'}
+                    </button>
+                </form>
+            </aside>
+            <main className="lg:col-span-3 p-6">
+                 <h2 className="text-xl font-bold text-brand-dark mb-4">Your Case History</h2>
+                 {cases.length === 0 ? (
+                    <div className="text-center py-16 text-gray-500">
+                        <p>You have no open or past cases.</p>
+                        <p className="text-sm">Use the form on the left to submit your first query.</p>
+                    </div>
+                 ) : (
+                    <ul className="space-y-3">
+                        {cases.map(c => (
+                            <li key={c.id} className="bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="font-semibold text-brand-dark truncate">Issue: {c.issue}</p>
+                                        <p className="text-sm text-gray-500">Submitted: {new Date(c.date).toLocaleDateString()}</p>
+                                    </div>
+                                    <div className="flex items-center space-x-4">
+                                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusStyles[c.status]}`}>{statusText[c.status]}</span>
+                                        <button onClick={() => handleViewDetails(c)} className="text-sm font-medium text-brand-secondary hover:text-brand-primary">View Details</button>
+                                    </div>
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+                 )}
+            </main>
+          </div>
+        </div>
+      </div>
+
+      {selectedCase && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50 animate-fade-in" aria-modal="true" role="dialog">
+            <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col">
+                <header className="p-4 border-b flex justify-between items-center bg-gray-50 rounded-t-xl">
+                    <h2 className="text-xl font-bold text-brand-dark">Case Details: {selectedCase.id}</h2>
+                    <button onClick={() => setSelectedCase(null)} className="text-gray-400 hover:text-gray-600">
+                        <XCircleIcon className="h-7 w-7" />
+                    </button>
+                </header>
+                <main className="p-6 overflow-y-auto">
+                    <div className="space-y-6">
+                        <div>
+                            <h3 className="font-semibold text-gray-800 border-b pb-2 mb-2">Your Query</h3>
+                            <p className="text-gray-600 whitespace-pre-wrap">{selectedCase.issue}</p>
+                            {selectedCase.documentName !== 'N/A' && <p className="text-sm text-gray-500 mt-3 flex items-center"><PaperClipIcon className="h-4 w-4 mr-2" />Attached: {selectedCase.documentName}</p>}
+                        </div>
+                         <div>
+                            <h3 className="font-semibold text-gray-800 border-b pb-2 mb-2">Expert's Solution</h3>
+                            {selectedCase.status === ConsultancyStatus.PENDING && (
+                                <p className="text-gray-600 p-4 bg-yellow-50 rounded-md">Your query is currently under review by our experts. You will be notified when the solution is ready.</p>
+                            )}
+                            {selectedCase.status !== ConsultancyStatus.PENDING && !selectedCase.isPaid && (
+                                <div className="text-center p-6 bg-blue-50 rounded-md">
+                                    <h4 className="font-bold text-brand-dark">A solution is ready for you!</h4>
+                                    <p className="text-gray-600 my-4">Please complete the secure payment to unlock the expert's advice.</p>
+                                    <button onClick={() => handlePayAndClose(selectedCase.id)} className="inline-flex items-center gap-2 py-2 px-6 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-accent hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-accent">
+                                        <BanknotesIcon className="h-5 w-5"/>
+                                        Pay and View Solution
+                                    </button>
+                                </div>
+                            )}
+                            {selectedCase.isPaid && (
+                                <div className="p-4 bg-green-50 rounded-md">
+                                    <p className="text-gray-700 whitespace-pre-wrap">{selectedCase.solution}</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </main>
+            </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+export default Consultancy;
