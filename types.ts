@@ -1,3 +1,4 @@
+
 export enum UserCategory {
   MINING_DEALER = 'MINING_DEALER',
   LEASEE = 'LEASEE',
@@ -17,6 +18,8 @@ export interface UserCategoryInfo {
   value: UserCategory;
   label: string;
   type: UserType;
+  price: number;
+  subscriptionPrice: number;
 }
 
 export interface RegistrationFormData {
@@ -35,6 +38,7 @@ export interface ProfileData {
 
 export interface UserData extends RegistrationFormData, ProfileData {
   category: UserCategory;
+  hasActiveSubscription: boolean;
 }
 
 export enum DocumentType {

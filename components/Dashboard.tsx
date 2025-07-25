@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { UserData, UserType } from '../types';
 import { USER_CATEGORIES } from '../constants';
@@ -7,9 +8,10 @@ interface DashboardProps {
   onReset: () => void;
   onEnterLibrary: () => void;
   onEnterConsultancy: () => void;
+  onSubscribe: () => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ userData, onReset, onEnterLibrary, onEnterConsultancy }) => {
+const Dashboard: React.FC<DashboardProps> = ({ userData, onReset, onEnterLibrary, onEnterConsultancy, onSubscribe }) => {
   const categoryInfo = USER_CATEGORIES.find(cat => cat.value === userData.category);
 
   if (!categoryInfo) {
@@ -20,6 +22,8 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onReset, onEnterLibrary
   const consultancyMessage = hasConsultancyAccess
       ? 'Connect with legal experts for personalized advice.'
       : 'Upgrade to a Premium account for access.';
+
+  const hasLibraryAccess = userData.hasActiveSubscription;
 
   return (
     <div className="w-full max-w-4xl mx-auto animate-fade-in">
@@ -68,12 +72,27 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onReset, onEnterLibrary
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
-                  <h4 className="font-bold text-brand-dark mb-2">Digital Library</h4>
-                  <p className="text-sm text-gray-600 mb-4">Explore a vast collection of laws, articles, and case studies.</p>
-                  <button onClick={onEnterLibrary} className="w-full bg-brand-primary text-white py-2 rounded-md hover:bg-opacity-90 transition">
-                    Enter Library
-                  </button>
+                <div className={`p-6 rounded-lg border ${hasLibraryAccess ? 'bg-gray-50 border-gray-200' : 'bg-blue-50 border-blue-200'}`}>
+                    <h4 className="font-bold text-brand-dark mb-2">Digital Library</h4>
+                    {hasLibraryAccess ? (
+                        <>
+                            <p className="text-sm text-green-700 font-semibold mb-4">✓ Subscribed</p>
+                            <p className="text-sm text-gray-600 mb-4">You have full access. Explore a vast collection of laws, articles, and case studies.</p>
+                            <button onClick={onEnterLibrary} className="w-full bg-brand-primary text-white py-2 rounded-md hover:bg-opacity-90 transition">
+                                Enter Library
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            <p className="text-sm text-gray-600 mb-2">Access an exhaustive collection of legal documents.</p>
+                            <p className="text-sm text-brand-dark font-semibold mb-4">
+                                Annual Subscription: ₹{categoryInfo.subscriptionPrice.toLocaleString()}
+                            </p>
+                            <button onClick={onSubscribe} className="w-full bg-brand-accent text-brand-dark font-semibold py-2 rounded-md hover:opacity-90 transition">
+                                Subscribe Now
+                            </button>
+                        </>
+                    )}
                 </div>
 
                 <div className={`p-6 rounded-lg border ${hasConsultancyAccess ? 'bg-gray-50 border-gray-200' : 'bg-gray-200 border-gray-300'}`}>

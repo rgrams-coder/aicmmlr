@@ -1,11 +1,12 @@
+
 import React, { useState, useMemo } from 'react';
 import { DocumentType, LibraryDocument } from '../types';
-import { LIBRARY_DATA } from '../constants';
 import DocumentTextIcon from './icons/DocumentTextIcon';
 import XCircleIcon from './icons/XCircleIcon';
 import SearchIcon from './icons/SearchIcon';
 
 interface LibraryProps {
+  documents: LibraryDocument[];
   onBackToDashboard: () => void;
 }
 
@@ -17,14 +18,14 @@ const DOCUMENT_TYPES = [
   { key: DocumentType.JUDGEMENT, label: 'Judgements' },
 ];
 
-const Library: React.FC<LibraryProps> = ({ onBackToDashboard }) => {
+const Library: React.FC<LibraryProps> = ({ documents, onBackToDashboard }) => {
   const [activeTab, setActiveTab] = useState<DocumentType>(DocumentType.BARE_ACT);
   const [selectedDoc, setSelectedDoc] = useState<LibraryDocument | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredDocuments = useMemo(() => {
     const lowercasedSearchTerm = searchTerm.toLowerCase();
-    return LIBRARY_DATA.filter(doc => {
+    return documents.filter(doc => {
         const matchesCategory = doc.type === activeTab;
         if (!matchesCategory) return false;
 
@@ -34,7 +35,7 @@ const Library: React.FC<LibraryProps> = ({ onBackToDashboard }) => {
         const matchesDescription = doc.description.toLowerCase().includes(lowercasedSearchTerm);
         return matchesTitle || matchesDescription;
     });
-  }, [activeTab, searchTerm]);
+  }, [activeTab, searchTerm, documents]);
 
   const handleTabClick = (tabKey: DocumentType) => {
     setActiveTab(tabKey);

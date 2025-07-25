@@ -1,6 +1,13 @@
+
 import React, { useState } from 'react';
 import { RegistrationFormData, UserCategory, UserCategoryInfo } from '../types';
 import { USER_CATEGORIES } from '../constants';
+
+interface RazorpayResponse {
+  razorpay_payment_id: string;
+  razorpay_order_id: string;
+  razorpay_signature: string;
+}
 
 interface RegistrationStepProps {
   userCategory: UserCategory;
@@ -17,13 +24,49 @@ const RegistrationStep: React.FC<RegistrationStepProps> = ({ userCategory, onSub
   });
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [isPaying, setIsPaying] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const categoryInfo = USER_CATEGORIES.find(cat => cat.value === userCategory) as UserCategoryInfo;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+  
+  const displayRazorpay = () => {
+    const options = {
+      key: 'rzp_test_VWCS3cXessJ8LA',
+      amount: categoryInfo.price * 100, // Amount in paise
+      currency: "INR",
+      name: "Mines and Minerals Laws Ecosystem",
+      description: `Registration Fee for ${categoryInfo.label}`,
+      handler: (response: RazorpayResponse) => {
+        console.log('Payment successful:', response);
+        onSubmit({ ...formData, password });
+      },
+      prefill: {
+        name: formData.name,
+        email: formData.email,
+        contact: formData.phone,
+      },
+      theme: {
+        color: "#1a3b5d",
+      },
+      modal: {
+        ondismiss: () => {
+          console.log('Razorpay modal dismissed');
+          setIsProcessing(false);
+        }
+      }
+    };
+    
+    const razorpay = new (window as any).Razorpay(options);
+    razorpay.on('payment.failed', function (response: any){
+      alert(`Payment failed: ${response.error.description}`);
+      console.error(response.error);
+      setIsProcessing(false);
+    });
+    razorpay.open();
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -32,11 +75,8 @@ const RegistrationStep: React.FC<RegistrationStepProps> = ({ userCategory, onSub
         alert("Passwords do not match.");
         return;
     }
-    setIsPaying(true);
-    // Mock payment processing
-    setTimeout(() => {
-      onSubmit({ ...formData, password });
-    }, 1500);
+    setIsProcessing(true);
+    displayRazorpay();
   };
 
   const isFormValid = formData.name && formData.email && formData.phone && password && password === confirmPassword;
@@ -48,6 +88,9 @@ const RegistrationStep: React.FC<RegistrationStepProps> = ({ userCategory, onSub
           <h2 className="text-2xl font-bold text-brand-dark">Registration</h2>
           <p className="text-gray-500">
             For Category: <span className="font-semibold text-brand-secondary">{categoryInfo.label}</span>
+          </p>
+          <p className="font-bold text-2xl text-brand-accent mt-2">
+            Registration Fee: ₹{categoryInfo.price}
           </p>
         </div>
 
@@ -77,8 +120,8 @@ const RegistrationStep: React.FC<RegistrationStepProps> = ({ userCategory, onSub
           </div>
 
           <div className="pt-4">
-            <button type="submit" disabled={!isFormValid || isPaying} className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-accent hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-accent disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors">
-              {isPaying ? 'Processing Payment...' : 'Proceed to Secure Payment'}
+            <button type="submit" disabled={!isFormValid || isProcessing} className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-accent hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-accent disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors">
+              {isProcessing ? 'Processing...' : `Pay ₹${categoryInfo.price} and Register`}
             </button>
              <button type="button" onClick={onBack} className="w-full text-center mt-4 text-sm font-medium text-gray-600 hover:text-brand-primary">
                 Back
