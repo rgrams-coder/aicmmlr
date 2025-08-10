@@ -15,7 +15,7 @@ const DOCUMENT_TYPES_META = [
 interface DocumentFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (doc: LibraryDocument) => void;
+  onSubmit: (doc: LibraryDocument, file: File | null) => void;
   documentToEdit?: LibraryDocument | null;
   initialType: DocumentType;
 }
@@ -33,14 +33,16 @@ const DocumentFormModal: React.FC<DocumentFormModalProps> = ({
     title: documentToEdit?.title || '',
     description: documentToEdit?.description || '',
     date: documentToEdit?.date || new Date().toISOString().split('T')[0],
-    content: documentToEdit?.content || '',
+    content: documentToEdit?.content || '', // This will be the file path
   });
 
   const [formData, setFormData] = useState<LibraryDocument>(getInitialState());
+  const [file, setFile] = useState<File | null>(null);
 
   useEffect(() => {
     if (isOpen) {
         setFormData(getInitialState());
+        setFile(null);
     }
   }, [documentToEdit, initialType, isOpen]);
 
@@ -53,9 +55,15 @@ const DocumentFormModal: React.FC<DocumentFormModalProps> = ({
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0]);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    onSubmit(formData, file);
   };
 
   return (
@@ -128,16 +136,20 @@ const DocumentFormModal: React.FC<DocumentFormModalProps> = ({
             </div>
             <div>
               <label htmlFor="content" className="block text-sm font-medium text-gray-700">Content</label>
-              <textarea
-                id="content"
-                name="content"
-                rows={8}
-                value={formData.content}
-                onChange={handleChange}
-                required
+              <label htmlFor="file" className="block text-sm font-medium text-gray-700">PDF Document</label>
+              <input
+                type="file"
+                id="file"
+                name="file"
+                onChange={handleFileChange}
+                accept=".pdf"
+                required={!documentToEdit} // Only required for new documents
                 className="mt-1 w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-brand-secondary focus:border-brand-secondary"
-                placeholder="Enter the full content of the document here."
               />
+              {file && <p className="text-sm text-gray-500 mt-1">Selected: {file.name}</p>}
+              {documentToEdit && formData.content && (
+                <p className="text-sm text-gray-500 mt-1">Current file: <a href={formData.content} target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline">{formData.content.split('/').pop()}</a></p>
+              )}
             </div>
           </main>
           <footer className="p-4 bg-gray-50 border-t flex justify-end space-x-3">

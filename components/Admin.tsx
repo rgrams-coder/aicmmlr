@@ -2,7 +2,7 @@
 
 
 import React, { useState, useMemo } from 'react';
-import { UserData, ConsultancyCase, ConsultancyStatus, UserCategory, DocumentType, LibraryDocument, Feedback } from '../types';
+import { UserData, ConsultancyCase, ConsultancyStatus, UserCategory, DocumentType, LibraryDocument, Feedback, ContactMessage } from '../types';
 import { USER_CATEGORIES } from '../constants';
 import DocumentFormModal from './DocumentFormModal';
 import AdminCaseModal from './AdminCaseModal';
@@ -20,9 +20,10 @@ interface AdminProps {
   cases: ConsultancyCase[];
   documents: LibraryDocument[];
   feedbacks: Feedback[];
+  contactMessages: ContactMessage[];
   onLogout: () => void;
-  onAddDocument: (doc: LibraryDocument) => void;
-  onUpdateDocument: (doc: LibraryDocument) => void;
+  onAddDocument: (doc: LibraryDocument, file: File | null) => void;
+  onUpdateDocument: (doc: LibraryDocument, file: File | null) => void;
   onDeleteDocument: (docId: string) => void;
   onUpdateCase: (caseId: string, solution: string, fee: number, solutionFile: File | null) => void;
 }
@@ -47,7 +48,7 @@ const DOC_TYPES_META = [
     { key: DocumentType.JUDGEMENT, label: 'Judgements' },
 ];
 
-const Admin: React.FC<AdminProps> = ({ users, cases, documents, feedbacks, onLogout, onAddDocument, onUpdateDocument, onDeleteDocument, onUpdateCase }) => {
+const Admin: React.FC<AdminProps> = ({ users, cases, documents, feedbacks, contactMessages, onLogout, onAddDocument, onUpdateDocument, onDeleteDocument, onUpdateCase }) => {
   const [activeTab, setActiveTab] = useState('users');
     
   const getUserCategoryLabel = (categoryValue: UserCategory) => {
@@ -80,11 +81,11 @@ const Admin: React.FC<AdminProps> = ({ users, cases, documents, feedbacks, onLog
     setEditingDoc(null);
   };
   
-  const handleDocFormSubmit = (doc: LibraryDocument) => {
+  const handleDocFormSubmit = (doc: LibraryDocument, file: File | null) => {
     if (editingDoc) {
-      onUpdateDocument(doc);
+      onUpdateDocument(doc, file);
     } else {
-      onAddDocument(doc);
+      onAddDocument(doc, file);
     }
     handleCloseDocModal();
   };
@@ -136,6 +137,7 @@ const Admin: React.FC<AdminProps> = ({ users, cases, documents, feedbacks, onLog
                 <button onClick={() => setActiveTab('cases')} className={`ml-8 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'cases' ? 'border-brand-secondary text-brand-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}><BriefcaseIcon className="h-5 w-5 mr-2 inline"/> Consultancy</button>
                 <button onClick={() => setActiveTab('library')} className={`ml-8 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'library' ? 'border-brand-secondary text-brand-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}><DocumentTextIcon className="h-5 w-5 mr-2 inline"/> Library</button>
                 <button onClick={() => setActiveTab('feedback')} className={`ml-8 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'feedback' ? 'border-brand-secondary text-brand-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}><ChatBubbleLeftRightIcon className="h-5 w-5 mr-2 inline"/> Feedback</button>
+                <button onClick={() => setActiveTab('messages')} className={`ml-8 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'messages' ? 'border-brand-secondary text-brand-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}><ChatBubbleLeftRightIcon className="h-5 w-5 mr-2 inline"/> Messages</button>
               </div>
             </nav>
 
@@ -306,6 +308,40 @@ const Admin: React.FC<AdminProps> = ({ users, cases, documents, feedbacks, onLog
                                   ))}
                                   {feedbacks.length === 0 && (
                                       <tr><td colSpan={3} className="text-center py-8 text-gray-500">No feedback received yet.</td></tr>
+                                  )}
+                              </tbody>
+                          </table>
+                      </div>
+                  </div>
+              )}
+              {activeTab === 'messages' && (
+                  <div className="bg-white p-6 rounded-lg shadow-md animate-fade-in">
+                      <div className="flex items-center mb-4">
+                          <ChatBubbleLeftRightIcon className="h-8 w-8 text-brand-secondary mr-3"/>
+                          <h2 className="text-2xl font-bold text-brand-dark">Contact Messages ({contactMessages.length})</h2>
+                      </div>
+                      <div className="rounded-lg overflow-hidden border border-gray-200 max-h-[70vh] overflow-y-auto">
+                          <table className="min-w-full divide-y divide-gray-200">
+                              <thead className="bg-gray-50">
+                                  <tr>
+                                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">From</th>
+                                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Message</th>
+                                  </tr>
+                              </thead>
+                              <tbody className="bg-white divide-y divide-gray-200">
+                                  {contactMessages.map(m => (
+                                      <tr key={m.id}>
+                                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(m.date).toLocaleString()}</td>
+                                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                              <div>{m.name}</div>
+                                              <div className="text-xs text-gray-500">{m.email}</div>
+                                          </td>
+                                          <td className="px-6 py-4 text-sm text-gray-600 whitespace-pre-wrap max-w-md">{m.message}</td>
+                                      </tr>
+                                  ))}
+                                  {contactMessages.length === 0 && (
+                                      <tr><td colSpan={3} className="text-center py-8 text-gray-500">No messages received yet.</td></tr>
                                   )}
                               </tbody>
                           </table>
