@@ -1,9 +1,6 @@
 
-
-
-
-import React, { useState, useCallback } from 'react';
-import { UserCategory, RegistrationFormData, ProfileData, UserData, ConsultancyCase, ConsultancyStatus, LibraryDocument, UserCategoryInfo } from './types';
+import React, { useState, useCallback, useRef } from 'react';
+import { UserCategory, RegistrationFormData, ProfileData, UserData, ConsultancyCase, ConsultancyStatus, LibraryDocument, UserCategoryInfo, Feedback } from './types';
 import { INITIAL_LIBRARY_DATA, USER_CATEGORIES } from './constants';
 import LandingPage from './components/LandingPage';
 import LandingStep from './components/LandingStep';
@@ -16,17 +13,49 @@ import Library from './components/Library';
 import Consultancy from './components/Consultancy';
 import Admin from './components/Admin';
 import Navbar from './components/Navbar';
+import ProfileEditModal from './components/ProfileEditModal';
+import FeedbackModal from './components/FeedbackModal';
 
 type AppStep = 'introduction' | 'landing' | 'login' | 'registration' | 'verification' | 'profile' | 'dashboard' | 'library' | 'consultancy' | 'admin';
 
 const modalSteps: AppStep[] = ['landing', 'login', 'registration', 'verification', 'profile'];
 
 const App: React.FC = () => {
+  const landingPageRefs = useRef({
+    contactRef: React.createRef<HTMLDivElement>(),
+    faqRef: React.createRef<HTMLDivElement>(),
+  });
+
   const [step, setStep] = useState<AppStep>('introduction');
   const [userData, setUserData] = useState<Partial<UserData>>({});
   const [allUsers, setAllUsers] = useState<UserData[]>([]);
   const [consultancyCases, setConsultancyCases] = useState<ConsultancyCase[]>([]);
   const [libraryData, setLibraryData] = useState<LibraryDocument[]>(INITIAL_LIBRARY_DATA);
+  const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
+  const [isEditProfileModalOpen, setEditProfileModalOpen] = useState(false);
+  const [isFeedbackModalOpen, setFeedbackModalOpen] = useState(false);
+
+  const handleContactClick = useCallback(() => {
+    if (step !== 'introduction') {
+      setStep('introduction');
+      setTimeout(() => {
+        landingPageRefs.current.contactRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100); // Small delay to allow the component to render
+    } else {
+      landingPageRefs.current.contactRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [step]);
+
+  const handleFaqClick = useCallback(() => {
+    if (step !== 'introduction') {
+      setStep('introduction');
+      setTimeout(() => {
+        landingPageRefs.current.faqRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100); // Delay to allow rendering
+    } else {
+      landingPageRefs.current.faqRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [step]);
 
   const handleReset = useCallback(() => {
     setUserData({});
@@ -137,19 +166,6 @@ const App: React.FC = () => {
     };
   
     setConsultancyCases(prev => [newConsultancyCase, ...prev]);
-  
-    // Simulate expert review and solution
-    setTimeout(() => {
-      setConsultancyCases(prev => prev.map(c => 
-        c.id === caseId 
-          ? { 
-              ...c, 
-              status: ConsultancyStatus.SOLUTION_READY, 
-              solution: `This is the expert's detailed solution for your query regarding: "${c.issue.substring(0, 50)}...".\n\nThe solution involves reviewing Section 4 of the MMDR Act, 1957, and considering the recent circular dated 2022-01-15. We recommend a full legal review of your attached documents to provide a conclusive opinion.` 
-            } 
-          : c
-      ));
-    }, 5000 + Math.random() * 2000); // 5-7 second delay
   }, [userData]);
 
   const handlePaymentForCase = useCallback((caseId: string) => {
@@ -232,11 +248,72 @@ const App: React.FC = () => {
     }
   }, [userData.address]);
 
+  const handleOpenEditProfile = useCallback(() => {
+    setEditProfileModalOpen(true);
+  }, []);
+
+  const handleCloseEditProfile = useCallback(() => {
+    setEditProfileModalOpen(false);
+  }, []);
+
+  const handleOpenFeedbackModal = useCallback(() => {
+    setFeedbackModalOpen(true);
+  }, []);
+
+  const handleCloseFeedbackModal = useCallback(() => {
+    setFeedbackModalOpen(false);
+  }, []);
+
+  const handleFeedbackSubmit = useCallback((feedbackText: string) => {
+    const currentUser = userData as UserData;
+    const newFeedback: Feedback = {
+      id: `FDBK-${Date.now().toString().slice(-6)}`,
+      date: new Date().toISOString(),
+      userName: currentUser.name,
+      userEmail: currentUser.email,
+      feedbackText,
+    };
+    setFeedbacks(prev => [newFeedback, ...prev]);
+    setFeedbackModalOpen(false);
+    alert('Thank you for your feedback!');
+  }, [userData]);
+
+  const handleProfileUpdate = useCallback((updatedData: Partial<UserData>, newPassword?: string) => {
+    setUserData(prev => ({ ...prev, ...updatedData }));
+    setAllUsers(prev => prev.map(u => u.email === userData.email ? { ...u, ...updatedData } : u));
+
+    if (newPassword) {
+      // In a real app, you'd make an API call to update the password.
+      // For this mock, we'll just log it.
+      console.log(`Password for ${userData.email} updated to: ${newPassword}`);
+      alert('Profile and password updated successfully!');
+    } else {
+      alert('Profile updated successfully!');
+    }
+
+    setEditProfileModalOpen(false);
+  }, [userData.email]);
+
+  const handleAdminUpdateCase = useCallback((caseId: string, solution: string, fee: number, solutionFile: File | null) => {
+    setConsultancyCases(prev => prev.map(c => 
+      c.id === caseId 
+        ? { 
+            ...c, 
+            solution,
+            fee,
+            solutionDocument: solutionFile,
+            solutionDocumentName: solutionFile?.name || '',
+            status: ConsultancyStatus.SOLUTION_READY,
+          } 
+        : c
+    ));
+  }, []);
+
 
   const renderStep = () => {
     switch (step) {
       case 'introduction':
-        return <LandingPage onGetStarted={handleGetStarted} onLoginClick={handleGoToLogin} />;
+        return <LandingPage ref={landingPageRefs} onGetStarted={handleGetStarted} onLoginClick={handleGoToLogin} />;
       case 'landing':
         return <LandingStep onSelectCategory={handleCategorySelect} onLoginClick={handleGoToLogin} />;
       case 'login':
@@ -257,19 +334,25 @@ const App: React.FC = () => {
           />
         );
       case 'profile':
-        return <ProfileStep onSubmit={handleProfileSubmit} />;
+        return (
+          <ProfileStep 
+            userCategory={userData.category as UserCategory} 
+            onSubmit={handleProfileSubmit} 
+          />
+        );
       case 'dashboard':
         return <Dashboard 
                   userData={userData as UserData} 
-                  onReset={handleReset} 
                   onEnterLibrary={handleEnterLibrary}
                   onEnterConsultancy={handleEnterConsultancy}
                   onSubscribe={handleSubscribeToLibrary}
+                  onEditProfile={handleOpenEditProfile}
                />;
       case 'library':
         return <Library documents={libraryData} onBackToDashboard={handleBackToDashboard} />;
       case 'consultancy':
         return <Consultancy 
+                  userData={userData as UserData}
                   cases={consultancyCases.filter(c => c.userEmail === (userData as UserData).email)}
                   onBackToDashboard={handleBackToDashboard}
                   onSubmit={handleNewConsultancySubmit}
@@ -284,9 +367,11 @@ const App: React.FC = () => {
                   onAddDocument={handleAddDocument}
                   onUpdateDocument={handleUpdateDocument}
                   onDeleteDocument={handleDeleteDocument}
+                  onUpdateCase={handleAdminUpdateCase}
+                  feedbacks={feedbacks}
                 />;
       default:
-        return <LandingPage onGetStarted={handleGetStarted} onLoginClick={handleGoToLogin} />;
+        return <LandingPage ref={landingPageRefs} onGetStarted={handleGetStarted} onLoginClick={handleGoToLogin} />;
     }
   };
 
@@ -296,10 +381,24 @@ const App: React.FC = () => {
 
   return (
     <div className="bg-brand-light min-h-screen flex flex-col">
-      {showNavbar && <Navbar onAdminLoginClick={handleAdminLoginClick} onLogoClick={handleNavigateHome} isUserLoggedIn={isUserLoggedIn} onLogoutClick={handleReset} />}
+      {showNavbar && <Navbar onAdminLoginClick={handleAdminLoginClick} onLogoClick={handleNavigateHome} isUserLoggedIn={isUserLoggedIn} onLogoutClick={handleReset} onFeedbackClick={handleOpenFeedbackModal} onContactClick={handleContactClick} onFaqClick={handleFaqClick} />}
       <main className={`flex-grow ${isModalStep ? 'p-4 flex items-center justify-center' : 'p-4'}`}>
         {renderStep()}
       </main>
+      {isEditProfileModalOpen && userData && (
+        <ProfileEditModal 
+          user={userData as UserData}
+          onClose={handleCloseEditProfile}
+          onSave={handleProfileUpdate}
+        />
+      )}
+
+      {isFeedbackModalOpen && (
+        <FeedbackModal 
+          onClose={handleCloseFeedbackModal}
+          onSubmit={handleFeedbackSubmit}
+        />
+      )}
     </div>
   );
 };

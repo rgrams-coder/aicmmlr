@@ -1,7 +1,9 @@
 
+
+
 export enum UserCategory {
-  MINING_DEALER = 'MINING_DEALER',
-  LEASEE = 'LEASEE',
+  MINERAL_DEALER = 'MINERAL_DEALER',
+  LESSEE = 'LESSEE',
   GOVERNMENT_OFFICIAL = 'GOVERNMENT_OFFICIAL',
   FIRM = 'FIRM',
   COMPANY = 'COMPANY',
@@ -34,7 +36,36 @@ export interface ProfileData {
   address: string;
   bio: string;
   profilePicture: File | null;
+
+  // Leasee, Firm, Company
+  state?: string;
+  district?: string;
+  circle?: string;
+  mauza?: string;
+  plotNo?: string;
+  area?: string;
+  revenueThanaNumber?: string;
+  thanaPs?: string;
+  minerals?: string;
+  natureOfLand?: string;
+  mineCodeIbm?: string;
+  mineCodeDgms?: string;
+
+  // Mining Dealer
+  licenceNo?: string;
+  // `minerals` is shared with Leasee type
+  dealerCodeIbm?: string;
+  natureOfBusiness?: string;
+
+  // Government Official
+  department?: string;
+  designation?: string;
+
+  // Student, Researcher
+  collegeName?: string;
+  universityName?: string;
 }
+
 
 export interface UserData extends RegistrationFormData, ProfileData {
   category: UserCategory;
@@ -72,7 +103,18 @@ export interface ConsultancyCase {
   documentName: string;
   status: ConsultancyStatus;
   solution?: string;
+  solutionDocument?: File | null;
+  solutionDocumentName?: string;
+  fee?: number;
   isPaid: boolean;
   userName: string;
   userEmail: string;
+}
+
+export interface Feedback {
+  id: string;
+  date: string;
+  userName: string;
+  userEmail: string;
+  feedbackText: string;
 }
