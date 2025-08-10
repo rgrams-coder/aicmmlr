@@ -1,17 +1,16 @@
-
 import React from 'react';
-import { UserData, UserType } from '../types';
+import { UserData, UserType, UserCategory } from '../types';
 import { USER_CATEGORIES } from '../constants';
 
 interface DashboardProps {
   userData: UserData;
-  onReset: () => void;
   onEnterLibrary: () => void;
   onEnterConsultancy: () => void;
   onSubscribe: () => void;
+  onEditProfile: () => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ userData, onReset, onEnterLibrary, onEnterConsultancy, onSubscribe }) => {
+const Dashboard: React.FC<DashboardProps> = ({ userData, onEnterLibrary, onEnterConsultancy, onSubscribe, onEditProfile }) => {
   const categoryInfo = USER_CATEGORIES.find(cat => cat.value === userData.category);
 
   if (!categoryInfo) {
@@ -24,6 +23,61 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onReset, onEnterLibrary
       : 'Upgrade to a Premium account for access.';
 
   const hasLibraryAccess = userData.hasActiveSubscription;
+  
+  const renderCategoryDetails = () => {
+    const isLeaseeType = [UserCategory.LESSEE, UserCategory.FIRM, UserCategory.COMPANY].includes(userData.category);
+    const isDealerType = userData.category === UserCategory.MINERAL_DEALER;
+    const isGovernmentType = userData.category === UserCategory.GOVERNMENT_OFFICIAL;
+    const isAcademicType = [UserCategory.STUDENT, UserCategory.RESEARCHER].includes(userData.category);
+
+    const detailItem = (label: string, value?: string) => value ? <p><strong className="text-gray-600">{label}:</strong> {value}</p> : null;
+
+    if (!isLeaseeType && !isDealerType && !isGovernmentType && !isAcademicType) {
+        return null;
+    }
+
+    return (
+        <div className="bg-gray-50 p-4 rounded-lg mt-4 border border-gray-200">
+            <h4 className="text-md font-semibold text-brand-dark mb-3 border-b pb-2">Category Specific Details</h4>
+            {isLeaseeType && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                    {detailItem('State', userData.state)}
+                    {detailItem('District', userData.district)}
+                    {detailItem('Circle', userData.circle)}
+                    {detailItem('Mauza', userData.mauza)}
+                    {detailItem('Plot No.', userData.plotNo)}
+                    {detailItem('Area', userData.area)}
+                    {detailItem('Revenue Thana', userData.revenueThanaNumber)}
+                    {detailItem('Thana/PS', userData.thanaPs)}
+                    {detailItem('Minerals', userData.minerals)}
+                    {detailItem('Nature of Land', userData.natureOfLand)}
+                    {detailItem('IBM Mine Code', userData.mineCodeIbm)}
+                    {detailItem('DGMS Mine Code', userData.mineCodeDgms)}
+                </div>
+            )}
+             {isDealerType && (
+                <div className="space-y-1 text-sm">
+                    {detailItem('Licence No.', userData.licenceNo)}
+                    {detailItem('Minerals', userData.minerals)}
+                    {detailItem('IBM Dealer Code', userData.dealerCodeIbm)}
+                    {detailItem('Nature of Business', userData.natureOfBusiness)}
+                </div>
+            )}
+            {isGovernmentType && (
+                 <div className="space-y-1 text-sm">
+                    {detailItem('Department', userData.department)}
+                    {detailItem('Designation', userData.designation)}
+                </div>
+            )}
+            {isAcademicType && (
+                 <div className="space-y-1 text-sm">
+                    {detailItem('College', userData.collegeName)}
+                    {detailItem('University', userData.universityName)}
+                </div>
+            )}
+        </div>
+    )
+  }
 
   return (
     <div className="w-full max-w-4xl mx-auto animate-fade-in">
@@ -36,12 +90,6 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onReset, onEnterLibrary
                 Your role: <span className="font-semibold text-brand-accent">{categoryInfo.label}</span>
               </p>
             </div>
-            <button
-                onClick={onReset}
-                className="text-sm font-medium text-white bg-brand-secondary hover:bg-brand-primary px-4 py-2 rounded-md transition-colors"
-            >
-                Start Over
-            </button>
           </div>
         </header>
 
@@ -56,6 +104,13 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onReset, onEnterLibrary
                 {userData.organization && <p><strong className="text-gray-600">Organization:</strong> {userData.organization}</p>}
                 <p className="pt-2"><strong className="text-gray-600">Bio:</strong> {userData.bio}</p>
               </div>
+              <button
+                onClick={onEditProfile}
+                className="w-full mt-4 bg-brand-primary text-white py-2 rounded-md hover:bg-opacity-90 transition"
+              >
+                Edit Profile
+              </button>
+              {renderCategoryDetails()}
             </div>
 
             <div className="md:col-span-2 space-y-6">

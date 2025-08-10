@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ConsultancyCase, ConsultancyStatus } from '../types';
+import { ConsultancyCase, ConsultancyStatus, UserData } from '../types';
 import PaperClipIcon from './icons/PaperClipIcon';
 import XCircleIcon from './icons/XCircleIcon';
 import BanknotesIcon from './icons/BanknotesIcon';
@@ -7,6 +7,7 @@ import UploadIcon from './icons/UploadIcon';
 
 interface ConsultancyProps {
   cases: ConsultancyCase[];
+  userData: UserData;
   onBackToDashboard: () => void;
   onSubmit: (data: { issue: string; document: File | null }) => void;
   onPay: (caseId: string) => void;
@@ -24,7 +25,7 @@ const statusText: { [key in ConsultancyStatus]: string } = {
     [ConsultancyStatus.COMPLETED]: 'Completed',
 }
 
-const Consultancy: React.FC<ConsultancyProps> = ({ cases, onBackToDashboard, onSubmit, onPay }) => {
+const Consultancy: React.FC<ConsultancyProps> = ({ cases, userData, onBackToDashboard, onSubmit, onPay }) => {
   const [issue, setIssue] = useState('');
   const [document, setDocument] = useState<File | null>(null);
   const [fileName, setFileName] = useState('');
@@ -52,10 +53,45 @@ const Consultancy: React.FC<ConsultancyProps> = ({ cases, onBackToDashboard, onS
     }, 1000);
   };
   
-  const handlePayAndClose = (caseId: string) => {
-    onPay(caseId);
-    setSelectedCase(prev => prev ? { ...prev, isPaid: true, status: ConsultancyStatus.COMPLETED } : null);
-  }
+  const handlePayForSolution = (caseToPay: ConsultancyCase) => {
+    if (!caseToPay.fee) {
+        alert("Fee information is not available for this case.");
+        return;
+    }
+
+    const options = {
+        key: 'rzp_test_VWCS3cXessJ8LA',
+        amount: caseToPay.fee * 100, // Amount in paise
+        currency: "INR",
+        name: "Mines and Minerals - Consultancy Fee",
+        description: `Payment for case #${caseToPay.id}`,
+        handler: (response: any) => {
+            console.log('Case payment successful:', response);
+            onPay(caseToPay.id);
+            setSelectedCase(prev => prev ? { ...prev, isPaid: true, status: ConsultancyStatus.COMPLETED } : null);
+        },
+        prefill: {
+            name: userData.name,
+            email: userData.email,
+            contact: userData.phone,
+        },
+        theme: {
+            color: "#1a3b5d",
+        },
+        modal: {
+            ondismiss: () => {
+              console.log('Razorpay modal dismissed for case payment.');
+            }
+        }
+    };
+
+    const razorpay = new (window as any).Razorpay(options);
+    razorpay.on('payment.failed', function (response: any){
+        alert(`Payment failed: ${response.error.description}`);
+        console.error(response.error);
+    });
+    razorpay.open();
+  };
 
   const handleViewDetails = (caseToShow: ConsultancyCase) => {
     setSelectedCase(caseToShow);
@@ -151,16 +187,43 @@ const Consultancy: React.FC<ConsultancyProps> = ({ cases, onBackToDashboard, onS
                             {selectedCase.status !== ConsultancyStatus.PENDING && !selectedCase.isPaid && (
                                 <div className="text-center p-6 bg-blue-50 rounded-md">
                                     <h4 className="font-bold text-brand-dark">A solution is ready for you!</h4>
-                                    <p className="text-gray-600 my-4">Please complete the secure payment to unlock the expert's advice.</p>
-                                    <button onClick={() => handlePayAndClose(selectedCase.id)} className="inline-flex items-center gap-2 py-2 px-6 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-accent hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-accent">
+                                    <p className="text-gray-600 my-2">Please complete the secure payment to unlock the expert's advice.</p>
+                                    <p className="font-bold text-xl text-brand-dark my-4">Fee: ₹{selectedCase.fee?.toLocaleString() || 'N/A'}</p>
+                                    <button 
+                                      onClick={() => handlePayForSolution(selectedCase)} 
+                                      className="inline-flex items-center gap-2 py-2 px-6 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-accent hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-accent"
+                                      disabled={!selectedCase.fee}
+                                    >
                                         <BanknotesIcon className="h-5 w-5"/>
-                                        Pay and View Solution
+                                        Pay ₹{selectedCase.fee?.toLocaleString()} and View Solution
                                     </button>
                                 </div>
                             )}
                             {selectedCase.isPaid && (
-                                <div className="p-4 bg-green-50 rounded-md">
-                                    <p className="text-gray-700 whitespace-pre-wrap">{selectedCase.solution}</p>
+                                <div className="p-4 bg-green-50 rounded-md space-y-4">
+                                    {selectedCase.solution && (
+                                        <div>
+                                            <h4 className="font-semibold text-sm text-gray-800">Text Solution:</h4>
+                                            <p className="text-gray-700 whitespace-pre-wrap mt-1">{selectedCase.solution}</p>
+                                        </div>
+                                    )}
+                                    {selectedCase.solutionDocumentName && (
+                                        <div>
+                                            <h4 className="font-semibold text-sm text-gray-800">Attached Solution Document:</h4>
+                                            <a 
+                                                href="#" 
+                                                onClick={(e) => { e.preventDefault(); alert(`Downloading ${selectedCase.solutionDocumentName}... (This is a simulation)`); }}
+                                                className="flex items-center gap-2 text-brand-secondary hover:underline mt-1"
+                                                title={`Download ${selectedCase.solutionDocumentName}`}
+                                            >
+                                                <PaperClipIcon className="h-5 w-5"/>
+                                                <span>{selectedCase.solutionDocumentName}</span>
+                                            </a>
+                                        </div>
+                                    )}
+                                    {!selectedCase.solution && !selectedCase.solutionDocumentName && (
+                                        <p className="text-gray-700">The solution has been processed. If you believe this is an error, please contact support.</p>
+                                    )}
                                 </div>
                             )}
                         </div>

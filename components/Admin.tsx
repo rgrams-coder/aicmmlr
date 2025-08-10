@@ -1,24 +1,30 @@
 
+
+
 import React, { useState, useMemo } from 'react';
-import { UserData, ConsultancyCase, ConsultancyStatus, UserCategory, DocumentType, LibraryDocument } from '../types';
+import { UserData, ConsultancyCase, ConsultancyStatus, UserCategory, DocumentType, LibraryDocument, Feedback } from '../types';
 import { USER_CATEGORIES } from '../constants';
+import DocumentFormModal from './DocumentFormModal';
+import AdminCaseModal from './AdminCaseModal';
 import UsersIcon from './icons/UsersIcon';
 import BriefcaseIcon from './icons/BriefcaseIcon';
 import DocumentTextIcon from './icons/DocumentTextIcon';
+import ChatBubbleLeftRightIcon from './icons/ChatBubbleLeftRightIcon';
 import PlusCircleIcon from './icons/PlusCircleIcon';
 import PencilIcon from './icons/PencilIcon';
 import TrashIcon from './icons/TrashIcon';
-import DocumentFormModal from './DocumentFormModal';
 
 
 interface AdminProps {
   users: UserData[];
   cases: ConsultancyCase[];
   documents: LibraryDocument[];
+  feedbacks: Feedback[];
   onLogout: () => void;
   onAddDocument: (doc: LibraryDocument) => void;
   onUpdateDocument: (doc: LibraryDocument) => void;
   onDeleteDocument: (docId: string) => void;
+  onUpdateCase: (caseId: string, solution: string, fee: number, solutionFile: File | null) => void;
 }
 
 const statusStyles: { [key in ConsultancyStatus]: string } = {
@@ -41,52 +47,77 @@ const DOC_TYPES_META = [
     { key: DocumentType.JUDGEMENT, label: 'Judgements' },
 ];
 
-const Admin: React.FC<AdminProps> = ({ users, cases, documents, onLogout, onAddDocument, onUpdateDocument, onDeleteDocument }) => {
+const Admin: React.FC<AdminProps> = ({ users, cases, documents, feedbacks, onLogout, onAddDocument, onUpdateDocument, onDeleteDocument, onUpdateCase }) => {
+  const [activeTab, setActiveTab] = useState('users');
     
   const getUserCategoryLabel = (categoryValue: UserCategory) => {
     return USER_CATEGORIES.find(c => c.value === categoryValue)?.label || 'N/A';
   }
 
   const [activeLibTab, setActiveLibTab] = useState<DocumentType>(DocumentType.BARE_ACT);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDocModalOpen, setIsDocModalOpen] = useState(false);
   const [editingDoc, setEditingDoc] = useState<LibraryDocument | null>(null);
+
+  const [selectedCase, setSelectedCase] = useState<ConsultancyCase | null>(null);
+  const [isCaseModalOpen, setIsCaseModalOpen] = useState(false);
 
   const filteredDocs = useMemo(() => {
     return documents.filter(doc => doc.type === activeLibTab).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [documents, activeLibTab]);
 
-  const handleOpenAddModal = () => {
+  const handleOpenAddDocModal = () => {
     setEditingDoc(null);
-    setIsModalOpen(true);
+    setIsDocModalOpen(true);
   };
 
-  const handleOpenEditModal = (doc: LibraryDocument) => {
+  const handleOpenEditDocModal = (doc: LibraryDocument) => {
     setEditingDoc(doc);
-    setIsModalOpen(true);
+    setIsDocModalOpen(true);
   };
   
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
+  const handleCloseDocModal = () => {
+    setIsDocModalOpen(false);
     setEditingDoc(null);
   };
   
-  const handleFormSubmit = (doc: LibraryDocument) => {
+  const handleDocFormSubmit = (doc: LibraryDocument) => {
     if (editingDoc) {
       onUpdateDocument(doc);
     } else {
       onAddDocument(doc);
     }
-    handleCloseModal();
+    handleCloseDocModal();
+  };
+  
+  const handleOpenCaseModal = (caseToEdit: ConsultancyCase) => {
+    setSelectedCase(caseToEdit);
+    setIsCaseModalOpen(true);
+  };
+
+  const handleCloseCaseModal = () => {
+    setSelectedCase(null);
+    setIsCaseModalOpen(false);
+  };
+
+  const handleCaseUpdate = (caseId: string, solution: string, fee: number, solutionFile: File | null) => {
+    onUpdateCase(caseId, solution, fee, solutionFile);
+    handleCloseCaseModal();
   };
 
   return (
     <>
         <DocumentFormModal
-            isOpen={isModalOpen}
-            onClose={handleCloseModal}
-            onSubmit={handleFormSubmit}
+            isOpen={isDocModalOpen}
+            onClose={handleCloseDocModal}
+            onSubmit={handleDocFormSubmit}
             documentToEdit={editingDoc}
             initialType={activeLibTab}
+        />
+        <AdminCaseModal 
+            isOpen={isCaseModalOpen}
+            onClose={handleCloseCaseModal}
+            onSubmit={handleCaseUpdate}
+            caseToEdit={selectedCase}
         />
         <div className="w-full max-w-7xl mx-auto animate-fade-in">
         <div className="bg-white rounded-xl shadow-2xl overflow-hidden">
@@ -99,9 +130,18 @@ const Admin: React.FC<AdminProps> = ({ users, cases, documents, onLogout, onAddD
             </div>
             </header>
 
-            <div className="p-6 sm:p-8 grid grid-cols-1 lg:grid-cols-2 gap-8 bg-brand-light">
-                {/* Registered Users Section */}
-                <div className="bg-white p-6 rounded-lg shadow-md">
+            <nav className="bg-gray-50 border-b border-gray-200">
+              <div className="-mb-px flex justify-start px-4 sm:px-6">
+                <button onClick={() => setActiveTab('users')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'users' ? 'border-brand-secondary text-brand-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}><UsersIcon className="h-5 w-5 mr-2 inline"/> Users</button>
+                <button onClick={() => setActiveTab('cases')} className={`ml-8 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'cases' ? 'border-brand-secondary text-brand-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}><BriefcaseIcon className="h-5 w-5 mr-2 inline"/> Consultancy</button>
+                <button onClick={() => setActiveTab('library')} className={`ml-8 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'library' ? 'border-brand-secondary text-brand-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}><DocumentTextIcon className="h-5 w-5 mr-2 inline"/> Library</button>
+                <button onClick={() => setActiveTab('feedback')} className={`ml-8 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'feedback' ? 'border-brand-secondary text-brand-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}><ChatBubbleLeftRightIcon className="h-5 w-5 mr-2 inline"/> Feedback</button>
+              </div>
+            </nav>
+
+            <div className="p-6 sm:p-8 bg-brand-light">
+              {activeTab === 'users' && (
+                <div className="bg-white p-6 rounded-lg shadow-md animate-fade-in">
                     <div className="flex items-center mb-4">
                         <UsersIcon className="h-8 w-8 text-brand-secondary mr-3"/>
                         <h2 className="text-2xl font-bold text-brand-dark">Registered Users ({users.length})</h2>
@@ -130,9 +170,9 @@ const Admin: React.FC<AdminProps> = ({ users, cases, documents, onLogout, onAddD
                         </table>
                     </div>
                 </div>
-
-                {/* Consultancy Cases Section */}
-                <div className="bg-white p-6 rounded-lg shadow-md">
+              )}
+              {activeTab === 'cases' && (
+                <div className="bg-white p-6 rounded-lg shadow-md animate-fade-in">
                     <div className="flex items-center mb-4">
                         <BriefcaseIcon className="h-8 w-8 text-brand-secondary mr-3"/>
                         <h2 className="text-2xl font-bold text-brand-dark">Consultancy Cases ({cases.length})</h2>
@@ -144,6 +184,7 @@ const Admin: React.FC<AdminProps> = ({ users, cases, documents, onLogout, onAddD
                                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Case Info</th>
                                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Issue</th>
                                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
@@ -159,76 +200,118 @@ const Admin: React.FC<AdminProps> = ({ users, cases, documents, onLogout, onAddD
                                                 {statusText[c.status]}
                                             </span>
                                         </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                            <button
+                                                onClick={() => handleOpenCaseModal(c)}
+                                                className="text-brand-secondary hover:text-brand-primary p-1 rounded-full hover:bg-gray-100 transition-colors"
+                                                aria-label="Manage Case"
+                                            >
+                                                <PencilIcon className="h-5 w-5"/>
+                                            </button>
+                                        </td>
                                     </tr>
                                 ))}
                                 {cases.length === 0 && (
-                                    <tr><td colSpan={3} className="text-center py-8 text-gray-500">No cases submitted yet.</td></tr>
+                                    <tr><td colSpan={4} className="text-center py-8 text-gray-500">No cases submitted yet.</td></tr>
                                 )}
                             </tbody>
                         </table>
                     </div>
                 </div>
-            </div>
-
-            {/* Library Management Section */}
-            <div className="p-6 sm:p-8 bg-white border-t border-gray-200">
-                <div className="flex items-center justify-between mb-4 flex-wrap gap-4">
-                    <div className="flex items-center">
-                        <DocumentTextIcon className="h-8 w-8 text-brand-secondary mr-3"/>
-                        <h2 className="text-2xl font-bold text-brand-dark">Library Management</h2>
+              )}
+              {activeTab === 'library' && (
+                <div className="bg-white p-6 rounded-lg shadow-md animate-fade-in">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center">
+                            <DocumentTextIcon className="h-8 w-8 text-brand-secondary mr-3"/>
+                            <h2 className="text-2xl font-bold text-brand-dark">Library Documents</h2>
+                        </div>
+                        <button onClick={handleOpenAddDocModal} className="bg-brand-secondary text-white px-4 py-2 rounded-md hover:bg-brand-primary transition-colors flex items-center">
+                            <PlusCircleIcon className="h-5 w-5 mr-2"/> Add Document
+                        </button>
                     </div>
-                    <button onClick={handleOpenAddModal} className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-brand-primary hover:bg-brand-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary">
-                        <PlusCircleIcon className="h-5 w-5"/>
-                        Add New Document
-                    </button>
-                </div>
-                
-                <div className="border-b border-gray-200">
-                    <nav className="-mb-px flex space-x-6 overflow-x-auto" aria-label="Tabs">
-                        {DOC_TYPES_META.map(tab => (
+
+                    <div className="border-b border-gray-200">
+                        <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+                        {DOC_TYPES_META.map((tab) => (
                             <button
                                 key={tab.key}
                                 onClick={() => setActiveLibTab(tab.key)}
-                                className={`${ activeLibTab === tab.key ? 'border-brand-accent text-brand-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' } flex-shrink-0 whitespace-nowrap py-3 px-2 border-b-2 font-medium text-sm transition-colors`}
+                                className={`${ activeLibTab === tab.key
+                                    ? 'border-brand-primary text-brand-dark'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}
+                                whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
                             >
-                                {tab.label}
+                            {tab.label}
                             </button>
                         ))}
-                    </nav>
-                </div>
-                
-                <div className="mt-4 rounded-lg overflow-hidden border border-gray-200 max-h-[60vh] overflow-y-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50 sticky top-0 z-10">
-                            <tr>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                            {filteredDocs.map(doc => (
-                                <tr key={doc.id}>
-                                    <td className="px-6 py-4 text-sm font-medium text-gray-900 max-w-md truncate" title={doc.title}>
-                                        {doc.title}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{doc.date}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                                        <button onClick={() => handleOpenEditModal(doc)} className="text-indigo-600 hover:text-indigo-900 p-1 rounded-full hover:bg-indigo-100 transition-colors" aria-label="Edit document">
-                                            <PencilIcon className="h-5 w-5"/>
-                                        </button>
-                                        <button onClick={() => onDeleteDocument(doc.id)} className="text-red-600 hover:text-red-900 p-1 rounded-full hover:bg-red-100 transition-colors" aria-label="Delete document">
-                                            <TrashIcon className="h-5 w-5"/>
-                                        </button>
-                                    </td>
+                        </nav>
+                    </div>
+
+                    <div className="mt-6 rounded-lg overflow-hidden border border-gray-200 max-h-[60vh] overflow-y-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                                 </tr>
-                            ))}
-                            {filteredDocs.length === 0 && (
-                                <tr><td colSpan={3} className="text-center py-8 text-gray-500">No documents in this category.</td></tr>
-                            )}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {filteredDocs.map(doc => (
+                                    <tr key={doc.id}>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                            <a href={doc.filePath} target="_blank" rel="noopener noreferrer" className="hover:text-brand-primary transition-colors">{doc.title}</a>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(doc.date).toLocaleDateString()}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                                            <button onClick={() => handleOpenEditDocModal(doc)} className="text-blue-600 hover:text-blue-900 p-1 rounded-full hover:bg-gray-100"><PencilIcon className="h-5 w-5"/></button>
+                                            <button onClick={() => confirm('Are you sure you want to delete this document?') && onDeleteDocument(doc.id)} className="text-red-600 hover:text-red-900 p-1 rounded-full hover:bg-gray-100"><TrashIcon className="h-5 w-5"/></button>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {filteredDocs.length === 0 && (
+                                    <tr><td colSpan={3} className="text-center py-8 text-gray-500">No documents in this category.</td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
+              )}
+              {activeTab === 'feedback' && (
+                  <div className="bg-white p-6 rounded-lg shadow-md animate-fade-in">
+                      <div className="flex items-center mb-4">
+                          <ChatBubbleLeftRightIcon className="h-8 w-8 text-brand-secondary mr-3"/>
+                          <h2 className="text-2xl font-bold text-brand-dark">User Feedback ({feedbacks.length})</h2>
+                      </div>
+                      <div className="rounded-lg overflow-hidden border border-gray-200 max-h-[70vh] overflow-y-auto">
+                          <table className="min-w-full divide-y divide-gray-200">
+                              <thead className="bg-gray-50">
+                                  <tr>
+                                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">From</th>
+                                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Feedback</th>
+                                  </tr>
+                              </thead>
+                              <tbody className="bg-white divide-y divide-gray-200">
+                                  {feedbacks.map(f => (
+                                      <tr key={f.id}>
+                                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(f.date).toLocaleString()}</td>
+                                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                              <div>{f.userName}</div>
+                                              <div className="text-xs text-gray-500">{f.userEmail}</div>
+                                          </td>
+                                          <td className="px-6 py-4 text-sm text-gray-600 whitespace-pre-wrap max-w-md">{f.feedbackText}</td>
+                                      </tr>
+                                  ))}
+                                  {feedbacks.length === 0 && (
+                                      <tr><td colSpan={3} className="text-center py-8 text-gray-500">No feedback received yet.</td></tr>
+                                  )}
+                              </tbody>
+                          </table>
+                      </div>
+                  </div>
+              )}
             </div>
         </div>
         </div>
