@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback, useRef } from 'react';
-import { UserCategory, RegistrationFormData, ProfileData, UserData, ConsultancyCase, ConsultancyStatus, LibraryDocument, UserCategoryInfo, Feedback } from './types';
+import { UserCategory, RegistrationFormData, ProfileData, UserData, ConsultancyCase, ConsultancyStatus, LibraryDocument, UserCategoryInfo, Feedback, ContactMessage } from './types';
 import { INITIAL_LIBRARY_DATA, USER_CATEGORIES } from './constants';
 import LandingPage from './components/LandingPage';
 import LandingStep from './components/LandingStep';
@@ -32,6 +32,7 @@ const App: React.FC = () => {
   const [consultancyCases, setConsultancyCases] = useState<ConsultancyCase[]>([]);
   const [libraryData, setLibraryData] = useState<LibraryDocument[]>(INITIAL_LIBRARY_DATA);
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
+  const [contactMessages, setContactMessages] = useState<ContactMessage[]>([]);
   const [isEditProfileModalOpen, setEditProfileModalOpen] = useState(false);
   const [isFeedbackModalOpen, setFeedbackModalOpen] = useState(false);
 
@@ -221,12 +222,25 @@ const App: React.FC = () => {
     razorpay.open();
   }, [userData]);
 
-  const handleAddDocument = useCallback((doc: LibraryDocument) => {
-    setLibraryData(prev => [doc, ...prev]);
+  const handleAddDocument = useCallback((doc: LibraryDocument, file: File | null) => {
+    if (file) {
+      const fileUrl = URL.createObjectURL(file);
+      const newDoc = { ...doc, content: fileUrl };
+      setLibraryData(prev => [newDoc, ...prev]);
+    } else {
+      // Handle case where document is added without a file, if applicable
+      setLibraryData(prev => [doc, ...prev]);
+    }
   }, []);
 
-  const handleUpdateDocument = useCallback((updatedDoc: LibraryDocument) => {
-    setLibraryData(prev => prev.map(doc => doc.id === updatedDoc.id ? updatedDoc : doc));
+  const handleUpdateDocument = useCallback((updatedDoc: LibraryDocument, file: File | null) => {
+    if (file) {
+      const fileUrl = URL.createObjectURL(file);
+      const newDoc = { ...updatedDoc, content: fileUrl };
+      setLibraryData(prev => prev.map(doc => doc.id === newDoc.id ? newDoc : doc));
+    } else {
+      setLibraryData(prev => prev.map(doc => doc.id === updatedDoc.id ? updatedDoc : doc));
+    }
   }, []);
 
   const handleDeleteDocument = useCallback((docId: string) => {
@@ -277,6 +291,15 @@ const App: React.FC = () => {
     setFeedbackModalOpen(false);
     alert('Thank you for your feedback!');
   }, [userData]);
+
+  const handleContactSubmit = useCallback((formData: { name: string; email: string; message: string }) => {
+    const newContactMessage: ContactMessage = {
+      id: `MSG-${Date.now().toString().slice(-6)}`,
+      date: new Date().toISOString(),
+      ...formData,
+    };
+    setContactMessages(prev => [newContactMessage, ...prev]);
+  }, []);
 
   const handleProfileUpdate = useCallback((updatedData: Partial<UserData>, newPassword?: string) => {
     setUserData(prev => ({ ...prev, ...updatedData }));
@@ -369,9 +392,10 @@ const App: React.FC = () => {
                   onDeleteDocument={handleDeleteDocument}
                   onUpdateCase={handleAdminUpdateCase}
                   feedbacks={feedbacks}
+                  contactMessages={contactMessages}
                 />;
       default:
-        return <LandingPage ref={landingPageRefs} onGetStarted={handleGetStarted} onLoginClick={handleGoToLogin} />;
+        return <LandingPage ref={landingPageRefs} onGetStarted={handleGetStarted} onLoginClick={handleGoToLogin} onContactSubmit={handleContactSubmit} />;
     }
   };
 
