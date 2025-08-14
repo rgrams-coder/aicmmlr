@@ -52,24 +52,27 @@ const Admin: React.FC<AdminProps> = ({ users: initialUsers, cases: initialCases,
   const [documents, setDocuments] = useState<LibraryDocument[]>(initialDocuments || []);
   const [feedbacks, setFeedbacks] = useState<Feedback[]>(initialFeedbacks || []);
   const [contactMessages, setContactMessages] = useState<ContactMessage[]>(initialContactMessages || []);
+  const [visitorStats, setVisitorStats] = useState({ totalVisitors: 0, todayVisitors: 0, todayUsers: 0 });
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [usersRes, casesRes, docsRes, feedbackRes, contactRes] = await Promise.all([
+        const [usersRes, casesRes, docsRes, feedbackRes, contactRes, visitorRes] = await Promise.all([
           apiService.getUsers(),
           apiService.getCases(),
           apiService.getDocuments(),
           apiService.getFeedbacks(),
-          apiService.getContactMessages()
+          apiService.getContactMessages(),
+          apiService.getVisitorStats()
         ]);
         setUsers(usersRes.users);
         setCases(casesRes.cases);
         setDocuments(docsRes.documents);
         setFeedbacks(feedbackRes.feedbacks);
         setContactMessages(contactRes.contacts);
+        setVisitorStats(visitorRes);
       } catch (error) {
         console.error('Failed to fetch admin data:', error);
       } finally {
@@ -156,6 +159,20 @@ const Admin: React.FC<AdminProps> = ({ users: initialUsers, cases: initialCases,
     }
   };
 
+  const handleReplyToContact = async (message: any) => {
+    const reply = prompt('Enter your reply:');
+    if (reply && reply.trim()) {
+      try {
+        await apiService.replyToContact(message._id || message.id, reply);
+        const response = await apiService.getContactMessages();
+        setContactMessages(response.contacts);
+        alert('Reply sent successfully!');
+      } catch (error) {
+        alert('Failed to send reply');
+      }
+    }
+  };
+
   return (
     <>
         <DocumentFormModal
@@ -175,7 +192,14 @@ const Admin: React.FC<AdminProps> = ({ users: initialUsers, cases: initialCases,
         <div className="bg-white rounded-xl shadow-2xl overflow-hidden">
             <header className="bg-brand-dark p-6">
             <div className="flex items-center justify-between">
-                <h1 className="text-3xl font-bold text-white">Admin Dashboard</h1>
+                <div>
+                    <h1 className="text-3xl font-bold text-white">Admin Dashboard</h1>
+                    <div className="flex space-x-6 mt-2 text-sm text-gray-300">
+                        <span>Total Visitors: {visitorStats.totalVisitors}</span>
+                        <span>Today: {visitorStats.todayVisitors}</span>
+                        <span>Users Registered Today: {visitorStats.todayUsers}</span>
+                    </div>
+                </div>
                 <button onClick={onLogout} className="text-sm font-medium text-white bg-brand-secondary hover:bg-brand-primary px-4 py-2 rounded-md transition-colors">
                 Logout
                 </button>
@@ -365,7 +389,7 @@ const Admin: React.FC<AdminProps> = ({ users: initialUsers, cases: initialCases,
                               <tbody className="bg-white divide-y divide-gray-200">
                                   {feedbacks.map(f => (
                                       <tr key={f.id}>
-                                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(f.date).toLocaleString()}</td>
+                                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(f.createdAt || f.date || Date.now()).toLocaleString()}</td>
                                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                               <div>{f.userName}</div>
                                               <div className="text-xs text-gray-500">{f.userEmail}</div>
@@ -394,21 +418,39 @@ const Admin: React.FC<AdminProps> = ({ users: initialUsers, cases: initialCases,
                                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">From</th>
                                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Message</th>
+                                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                                   </tr>
                               </thead>
                               <tbody className="bg-white divide-y divide-gray-200">
                                   {contactMessages.map(m => (
                                       <tr key={m.id}>
-                                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(m.date).toLocaleString()}</td>
+                                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(m.createdAt || m.date || Date.now()).toLocaleString()}</td>
                                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                               <div>{m.name}</div>
                                               <div className="text-xs text-gray-500">{m.email}</div>
                                           </td>
-                                          <td className="px-6 py-4 text-sm text-gray-600 whitespace-pre-wrap max-w-md">{m.message}</td>
+                                          <td className="px-6 py-4 text-sm text-gray-600 whitespace-pre-wrap max-w-md">
+                                              <div>{m.message}</div>
+                                              {m.reply && (
+                                                  <div className="mt-2 p-2 bg-blue-50 rounded border-l-4 border-blue-200">
+                                                      <div className="text-xs text-blue-600 font-medium">Reply:</div>
+                                                      <div className="text-sm text-blue-800">{m.reply}</div>
+                                                  </div>
+                                              )}
+                                          </td>
+                                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                              <button
+                                                  onClick={() => handleReplyToContact(m)}
+                                                  className="text-brand-secondary hover:text-brand-primary p-1 rounded-full hover:bg-gray-100 transition-colors"
+                                                  disabled={!!m.reply}
+                                              >
+                                                  {m.reply ? 'Replied' : 'Reply'}
+                                              </button>
+                                          </td>
                                       </tr>
                                   ))}
                                   {contactMessages.length === 0 && (
-                                      <tr><td colSpan={3} className="text-center py-8 text-gray-500">No messages received yet.</td></tr>
+                                      <tr><td colSpan={4} className="text-center py-8 text-gray-500">No messages received yet.</td></tr>
                                   )}
                               </tbody>
                           </table>

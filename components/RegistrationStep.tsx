@@ -47,7 +47,7 @@ const RegistrationStep: React.FC<RegistrationStepProps> = ({ userCategory, onSub
         description: `Registration Fee for ${categoryInfo.label}`,
         handler: async (response: RazorpayResponse) => {
           try {
-            await apiService.verifyPayment({
+            await apiService.verifyRegistrationPayment({
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature
@@ -85,13 +85,36 @@ const RegistrationStep: React.FC<RegistrationStepProps> = ({ userCategory, onSub
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const validateEmail = async () => {
+    try {
+      const { apiService } = await import('../services/api');
+      await apiService.checkEmailExists(formData.email);
+      return true;
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('already exists')) {
+        alert('This email is already registered. Please use a different email or login instead.');
+        return false;
+      }
+      console.error('Email validation error:', error);
+      return true; // Continue if validation fails
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== confirmPassword) {
         alert("Passwords do not match.");
         return;
     }
+    
     setIsProcessing(true);
+    
+    const isEmailValid = await validateEmail();
+    if (!isEmailValid) {
+      setIsProcessing(false);
+      return;
+    }
+    
     displayRazorpay();
   };
 

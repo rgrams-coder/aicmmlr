@@ -114,7 +114,11 @@ const App: React.FC = () => {
       setUserData(response.user);
       setStep('verification');
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Registration failed');
+      const errorMessage = error instanceof Error ? error.message : 'Registration failed';
+      alert(errorMessage);
+      if (errorMessage.includes('User already exists')) {
+        setStep('registration');
+      }
     }
   }, [userData.category]);
 
@@ -200,7 +204,7 @@ const App: React.FC = () => {
         description: `Annual subscription for ${categoryInfo.label}`,
         handler: async (response: any) => {
           try {
-            await apiService.verifyPayment({
+            await apiService.verifyLibraryPayment({
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature
@@ -311,6 +315,15 @@ const App: React.FC = () => {
     setContactMessages(prev => [newContactMessage, ...prev]);
   }, []);
 
+  const handleReplyToContact = useCallback((message: any) => {
+    const reply = prompt('Enter your reply:');
+    if (reply && reply.trim()) {
+      // In a real app, this would call the API
+      console.log('Reply to', message.email, ':', reply);
+      alert('Reply functionality would send email to: ' + message.email);
+    }
+  }, []);
+
   // Check for existing token on app load
   useEffect(() => {
     const checkAuthState = async () => {
@@ -327,6 +340,12 @@ const App: React.FC = () => {
         } catch (error) {
           localStorage.removeItem('token');
         }
+      }
+      // Track visitor on app load
+      try {
+        await apiService.trackVisitor();
+      } catch (error) {
+        console.error('Failed to track visitor:', error);
       }
       setIsLoading(false);
     };

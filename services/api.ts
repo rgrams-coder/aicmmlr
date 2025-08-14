@@ -74,8 +74,15 @@ class ApiService {
     });
   }
 
-  async verifyPayment(paymentData: any) {
-    return this.request('/payment/verify', {
+  async verifyRegistrationPayment(paymentData: any) {
+    return this.request('/payment/verify-registration', {
+      method: 'POST',
+      body: JSON.stringify(paymentData)
+    });
+  }
+
+  async verifyLibraryPayment(paymentData: any) {
+    return this.request('/payment/verify-library', {
       method: 'POST',
       body: JSON.stringify(paymentData)
     });
@@ -179,6 +186,30 @@ class ApiService {
 
   async getContactMessages(page = 1, limit = 10) {
     return this.request(`/admin/contact-messages?page=${page}&limit=${limit}`);
+  }
+
+  async replyToContact(id: string, reply: string) {
+    return this.request(`/contact/${id}/reply`, {
+      method: 'POST',
+      body: JSON.stringify({ reply })
+    });
+  }
+
+  async trackVisitor() {
+    return this.request('/track-visitor', {
+      method: 'POST'
+    });
+  }
+
+  async getVisitorStats() {
+    return this.request('/visitor-stats');
+  }
+
+  async checkEmailExists(email: string) {
+    return this.request('/check-email', {
+      method: 'POST',
+      body: JSON.stringify({ email })
+    });
   }
 }
 
