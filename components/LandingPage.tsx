@@ -109,6 +109,17 @@ const LandingPage = forwardRef<LandingPageHandles, LandingPageProps>(({ onGetSta
                 </div>
             </section>
 
+            {/* Disclaimer Section */}
+            <section className="py-4">
+                <div className="max-w-4xl mx-auto text-center">
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                        <p className="text-yellow-800 font-medium">
+                            This site is still in development phase. Kindly support us by registration.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
             {/* Features Section */}
             <section className="py-12 md:py-20">
                 <div className="max-w-6xl mx-auto px-4">
