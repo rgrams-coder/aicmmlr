@@ -8,9 +8,15 @@ interface FeedbackModalProps {
 const FeedbackModal: React.FC<FeedbackModalProps> = ({ onClose, onSubmit }) => {
   const [feedback, setFeedback] = useState('');
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (feedback.trim()) {
-      onSubmit(feedback);
+      try {
+        const { apiService } = await import('../services/api');
+        await apiService.submitFeedback({ feedbackText: feedback });
+        onSubmit(feedback);
+      } catch (error) {
+        alert('Failed to submit feedback. Please try again.');
+      }
     }
   };
 

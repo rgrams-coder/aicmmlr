@@ -1,5 +1,6 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { apiService } from '../services/api';
 import { DocumentType, LibraryDocument } from '../types';
 import DocumentTextIcon from './icons/DocumentTextIcon';
 import XCircleIcon from './icons/XCircleIcon';
@@ -18,7 +19,24 @@ const DOCUMENT_TYPES = [
   { key: DocumentType.JUDGEMENT, label: 'Judgements' },
 ];
 
-const Library: React.FC<LibraryProps> = ({ documents, onBackToDashboard }) => {
+const Library: React.FC<LibraryProps> = ({ documents: initialDocuments, onBackToDashboard }) => {
+  const [documents, setDocuments] = useState<LibraryDocument[]>(initialDocuments);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchDocuments = async () => {
+      setLoading(true);
+      try {
+        const response = await apiService.getDocuments();
+        setDocuments(response.documents);
+      } catch (error) {
+        console.error('Failed to fetch documents:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDocuments();
+  }, []);
   const [activeTab, setActiveTab] = useState<DocumentType>(DocumentType.BARE_ACT);
   const [selectedDoc, setSelectedDoc] = useState<LibraryDocument | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -89,6 +107,12 @@ const Library: React.FC<LibraryProps> = ({ documents, onBackToDashboard }) => {
           </div>
           
           <div className="p-6 bg-brand-light min-h-[60vh]">
+            {loading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-secondary mx-auto"></div>
+                <p className="text-gray-600 mt-4">Loading documents...</p>
+              </div>
+            ) : (
             <ul className="space-y-4">
               {filteredDocuments.map(doc => (
                  <li key={doc.id} onClick={() => setSelectedDoc(doc)} className="bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer border border-gray-200">
@@ -111,6 +135,7 @@ const Library: React.FC<LibraryProps> = ({ documents, onBackToDashboard }) => {
                 </li>
               )}
             </ul>
+            )}
           </div>
         </div>
       </div>

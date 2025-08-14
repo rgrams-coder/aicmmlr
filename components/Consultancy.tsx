@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { apiService } from '../services/api';
 import { ConsultancyCase, ConsultancyStatus, UserData } from '../types';
 import PaperClipIcon from './icons/PaperClipIcon';
 import XCircleIcon from './icons/XCircleIcon';
@@ -13,19 +14,36 @@ interface ConsultancyProps {
   onPay: (caseId: string) => void;
 }
 
-const statusStyles: { [key in ConsultancyStatus]: string } = {
-  [ConsultancyStatus.PENDING]: 'bg-yellow-100 text-yellow-800',
-  [ConsultancyStatus.SOLUTION_READY]: 'bg-blue-100 text-blue-800',
-  [ConsultancyStatus.COMPLETED]: 'bg-green-100 text-green-800',
+const statusStyles: { [key: string]: string } = {
+  'open': 'bg-yellow-100 text-yellow-800',
+  'in_progress': 'bg-blue-100 text-blue-800',
+  'closed': 'bg-green-100 text-green-800',
 };
 
-const statusText: { [key in ConsultancyStatus]: string } = {
-    [ConsultancyStatus.PENDING]: 'Pending Review',
-    [ConsultancyStatus.SOLUTION_READY]: 'Solution Ready',
-    [ConsultancyStatus.COMPLETED]: 'Completed',
+const statusText: { [key: string]: string } = {
+  'open': 'Open',
+  'in_progress': 'In Progress',
+  'closed': 'Closed',
 }
 
-const Consultancy: React.FC<ConsultancyProps> = ({ cases, userData, onBackToDashboard, onSubmit, onPay }) => {
+const Consultancy: React.FC<ConsultancyProps> = ({ cases: initialCases, userData, onBackToDashboard, onSubmit, onPay }) => {
+  const [cases, setCases] = useState<ConsultancyCase[]>(initialCases);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchCases = async () => {
+      setLoading(true);
+      try {
+        const response = await apiService.getCases();
+        setCases(response.cases);
+      } catch (error) {
+        console.error('Failed to fetch cases:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCases();
+  }, []);
   const [issue, setIssue] = useState('');
   const [document, setDocument] = useState<File | null>(null);
   const [fileName, setFileName] = useState('');
@@ -40,17 +58,22 @@ const Consultancy: React.FC<ConsultancyProps> = ({ cases, userData, onBackToDash
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!issue.trim()) return;
     setIsSubmitting(true);
-    onSubmit({ issue, document });
-    setTimeout(() => {
-        setIssue('');
-        setDocument(null);
-        setFileName('');
-        setIsSubmitting(false);
-    }, 1000);
+    try {
+      await apiService.createCase({ issue });
+      const response = await apiService.getCases();
+      setCases(response.cases);
+      setIssue('');
+      setDocument(null);
+      setFileName('');
+    } catch (error) {
+      alert('Failed to submit case');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
   
   const handlePayForSolution = (caseToPay: ConsultancyCase) => {
@@ -146,8 +169,9 @@ const Consultancy: React.FC<ConsultancyProps> = ({ cases, userData, onBackToDash
                             <li key={c.id} className="bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="font-semibold text-brand-dark truncate">Issue: {c.issue}</p>
-                                        <p className="text-sm text-gray-500">Submitted: {new Date(c.date).toLocaleDateString()}</p>
+                                        <p className="font-semibold text-brand-dark">{c.caseRefNo || c.id}</p>
+                                        <p className="text-sm text-gray-600 truncate">Issue: {c.issue}</p>
+                                        <p className="text-sm text-gray-500">Submitted: {new Date(c.createdAt || c.date).toLocaleDateString()}</p>
                                     </div>
                                     <div className="flex items-center space-x-4">
                                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusStyles[c.status]}`}>{statusText[c.status]}</span>
@@ -167,7 +191,7 @@ const Consultancy: React.FC<ConsultancyProps> = ({ cases, userData, onBackToDash
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50 animate-fade-in" aria-modal="true" role="dialog">
             <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col">
                 <header className="p-4 border-b flex justify-between items-center bg-gray-50 rounded-t-xl">
-                    <h2 className="text-xl font-bold text-brand-dark">Case Details: {selectedCase.id}</h2>
+                    <h2 className="text-xl font-bold text-brand-dark">Case Details: {selectedCase.caseRefNo || selectedCase.id}</h2>
                     <button onClick={() => setSelectedCase(null)} className="text-gray-400 hover:text-gray-600">
                         <XCircleIcon className="h-7 w-7" />
                     </button>
@@ -177,7 +201,14 @@ const Consultancy: React.FC<ConsultancyProps> = ({ cases, userData, onBackToDash
                         <div>
                             <h3 className="font-semibold text-gray-800 border-b pb-2 mb-2">Your Query</h3>
                             <p className="text-gray-600 whitespace-pre-wrap">{selectedCase.issue}</p>
-                            {selectedCase.documentName !== 'N/A' && <p className="text-sm text-gray-500 mt-3 flex items-center"><PaperClipIcon className="h-4 w-4 mr-2" />Attached: {selectedCase.documentName}</p>}
+                            {selectedCase.document && (
+                                <p className="text-sm text-gray-500 mt-3 flex items-center">
+                                    <PaperClipIcon className="h-4 w-4 mr-2" />
+                                    <a href={selectedCase.documentUrl} target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline">
+                                        Attached: {selectedCase.document}
+                                    </a>
+                                </p>
+                            )}
                         </div>
                          <div>
                             <h3 className="font-semibold text-gray-800 border-b pb-2 mb-2">Expert's Solution</h3>

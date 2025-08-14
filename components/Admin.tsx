@@ -1,7 +1,5 @@
-
-
-
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { apiService } from '../services/api';
 import { UserData, ConsultancyCase, ConsultancyStatus, UserCategory, DocumentType, LibraryDocument, Feedback, ContactMessage } from '../types';
 import { USER_CATEGORIES } from '../constants';
 import DocumentFormModal from './DocumentFormModal';
@@ -48,7 +46,38 @@ const DOC_TYPES_META = [
     { key: DocumentType.JUDGEMENT, label: 'Judgements' },
 ];
 
-const Admin: React.FC<AdminProps> = ({ users, cases, documents, feedbacks, contactMessages, onLogout, onAddDocument, onUpdateDocument, onDeleteDocument, onUpdateCase }) => {
+const Admin: React.FC<AdminProps> = ({ users: initialUsers, cases: initialCases, documents: initialDocuments, feedbacks: initialFeedbacks, contactMessages: initialContactMessages, onLogout, onAddDocument, onUpdateDocument, onDeleteDocument, onUpdateCase }) => {
+  const [users, setUsers] = useState<UserData[]>(initialUsers || []);
+  const [cases, setCases] = useState<ConsultancyCase[]>(initialCases || []);
+  const [documents, setDocuments] = useState<LibraryDocument[]>(initialDocuments || []);
+  const [feedbacks, setFeedbacks] = useState<Feedback[]>(initialFeedbacks || []);
+  const [contactMessages, setContactMessages] = useState<ContactMessage[]>(initialContactMessages || []);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const [usersRes, casesRes, docsRes, feedbackRes, contactRes] = await Promise.all([
+          apiService.getUsers(),
+          apiService.getCases(),
+          apiService.getDocuments(),
+          apiService.getFeedbacks(),
+          apiService.getContactMessages()
+        ]);
+        setUsers(usersRes.users);
+        setCases(casesRes.cases);
+        setDocuments(docsRes.documents);
+        setFeedbacks(feedbackRes.feedbacks);
+        setContactMessages(contactRes.contacts);
+      } catch (error) {
+        console.error('Failed to fetch admin data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
   const [activeTab, setActiveTab] = useState('users');
     
   const getUserCategoryLabel = (categoryValue: UserCategory) => {
@@ -63,7 +92,7 @@ const Admin: React.FC<AdminProps> = ({ users, cases, documents, feedbacks, conta
   const [isCaseModalOpen, setIsCaseModalOpen] = useState(false);
 
   const filteredDocs = useMemo(() => {
-    return documents.filter(doc => doc.type === activeLibTab).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return (documents || []).filter(doc => doc.type === activeLibTab).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [documents, activeLibTab]);
 
   const handleOpenAddDocModal = () => {
@@ -81,16 +110,32 @@ const Admin: React.FC<AdminProps> = ({ users, cases, documents, feedbacks, conta
     setEditingDoc(null);
   };
   
-  const handleDocFormSubmit = (doc: LibraryDocument, file: File | null) => {
-    if (editingDoc) {
-      onUpdateDocument(doc, file);
-    } else {
-      onAddDocument(doc, file);
+  const handleDocFormSubmit = async (doc: LibraryDocument, file: File | null) => {
+    try {
+      if (editingDoc) {
+        await apiService.updateDocument(doc.id, doc);
+      } else {
+        await apiService.createDocument(doc, file);
+      }
+      const response = await apiService.getDocuments();
+      setDocuments(response.documents);
+      handleCloseDocModal();
+    } catch (error) {
+      alert('Failed to save document');
     }
-    handleCloseDocModal();
   };
   
-  const handleOpenCaseModal = (caseToEdit: ConsultancyCase) => {
+  const handleOpenCaseModal = async (caseToEdit: ConsultancyCase) => {
+    // Update status to in_progress when admin views the case
+    if (caseToEdit.status === 'open') {
+      try {
+        await apiService.updateCase(caseToEdit.id, { status: 'in_progress' });
+        const response = await apiService.getCases();
+        setCases(response.cases);
+      } catch (error) {
+        console.error('Failed to update case status:', error);
+      }
+    }
     setSelectedCase(caseToEdit);
     setIsCaseModalOpen(true);
   };
@@ -100,9 +145,15 @@ const Admin: React.FC<AdminProps> = ({ users, cases, documents, feedbacks, conta
     setIsCaseModalOpen(false);
   };
 
-  const handleCaseUpdate = (caseId: string, solution: string, fee: number, solutionFile: File | null) => {
-    onUpdateCase(caseId, solution, fee, solutionFile);
-    handleCloseCaseModal();
+  const handleCaseUpdate = async (caseId: string, solution: string, fee: number, solutionFile: File | null) => {
+    try {
+      await apiService.updateCase(caseId, { solution, fee, status: 'closed' });
+      const response = await apiService.getCases();
+      setCases(response.cases);
+      handleCloseCaseModal();
+    } catch (error) {
+      alert('Failed to update case');
+    }
   };
 
   return (
@@ -142,6 +193,12 @@ const Admin: React.FC<AdminProps> = ({ users, cases, documents, feedbacks, conta
             </nav>
 
             <div className="p-6 sm:p-8 bg-brand-light">
+              {loading && (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-dark mx-auto mb-4"></div>
+                  <p className="text-brand-dark">Loading admin data...</p>
+                </div>
+              )}
               {activeTab === 'users' && (
                 <div className="bg-white p-6 rounded-lg shadow-md animate-fade-in">
                     <div className="flex items-center mb-4">
@@ -193,7 +250,7 @@ const Admin: React.FC<AdminProps> = ({ users, cases, documents, feedbacks, conta
                                 {cases.map(c => (
                                     <tr key={c.id}>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                            <div>{c.id}</div>
+                                            <div>{c.caseRefNo || c.id}</div>
                                             <div className="text-xs text-gray-500" title={c.userEmail}>{c.userName}</div>
                                         </td>
                                         <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate" title={c.issue}>{c.issue}</td>
@@ -263,12 +320,22 @@ const Admin: React.FC<AdminProps> = ({ users, cases, documents, feedbacks, conta
                                 {filteredDocs.map(doc => (
                                     <tr key={doc.id}>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                            <a href={doc.filePath} target="_blank" rel="noopener noreferrer" className="hover:text-brand-primary transition-colors">{doc.title}</a>
+                                            <a href={doc.fileUrl || doc.content} target="_blank" rel="noopener noreferrer" className="hover:text-brand-primary transition-colors">{doc.title}</a>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(doc.date).toLocaleDateString()}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                                             <button onClick={() => handleOpenEditDocModal(doc)} className="text-blue-600 hover:text-blue-900 p-1 rounded-full hover:bg-gray-100"><PencilIcon className="h-5 w-5"/></button>
-                                            <button onClick={() => confirm('Are you sure you want to delete this document?') && onDeleteDocument(doc.id)} className="text-red-600 hover:text-red-900 p-1 rounded-full hover:bg-gray-100"><TrashIcon className="h-5 w-5"/></button>
+                                            <button onClick={async () => {
+                                              if (confirm('Are you sure you want to delete this document?')) {
+                                                try {
+                                                  await apiService.deleteDocument(doc.id);
+                                                  const response = await apiService.getDocuments();
+                                                  setDocuments(response.documents);
+                                                } catch (error) {
+                                                  alert('Failed to delete document');
+                                                }
+                                              }
+                                            }} className="text-red-600 hover:text-red-900 p-1 rounded-full hover:bg-gray-100"><TrashIcon className="h-5 w-5"/></button>
                                         </td>
                                     </tr>
                                 ))}

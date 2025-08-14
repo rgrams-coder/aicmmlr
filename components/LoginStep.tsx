@@ -11,15 +11,15 @@ const LoginStep: React.FC<LoginStepProps> = ({ onSubmit, onSwitchToRegister }) =
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) return;
     setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      onSubmit(email, password);
+    try {
+      await onSubmit(email, password);
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   return (

@@ -33,40 +33,56 @@ const RegistrationStep: React.FC<RegistrationStepProps> = ({ userCategory, onSub
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
   
-  const displayRazorpay = () => {
-    const options = {
-      key: 'rzp_test_VWCS3cXessJ8LA',
-      amount: categoryInfo.price * 100, // Amount in paise
-      currency: "INR",
-      name: "Mines and Minerals Laws Ecosystem",
-      description: `Registration Fee for ${categoryInfo.label}`,
-      handler: (response: RazorpayResponse) => {
-        console.log('Payment successful:', response);
-        onSubmit({ ...formData, password });
-      },
-      prefill: {
-        name: formData.name,
-        email: formData.email,
-        contact: formData.phone,
-      },
-      theme: {
-        color: "#1a3b5d",
-      },
-      modal: {
-        ondismiss: () => {
-          console.log('Razorpay modal dismissed');
-          setIsProcessing(false);
+  const displayRazorpay = async () => {
+    try {
+      const { apiService } = await import('../services/api');
+      const orderData = await apiService.createOrder(categoryInfo.price);
+      
+      const options = {
+        key: orderData.key,
+        amount: orderData.amount,
+        currency: orderData.currency,
+        order_id: orderData.orderId,
+        name: "Mines and Minerals Laws Ecosystem",
+        description: `Registration Fee for ${categoryInfo.label}`,
+        handler: async (response: RazorpayResponse) => {
+          try {
+            await apiService.verifyPayment({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature
+            });
+            onSubmit({ ...formData, password });
+          } catch (error) {
+            alert('Payment verification failed');
+            setIsProcessing(false);
+          }
+        },
+        prefill: {
+          name: formData.name,
+          email: formData.email,
+          contact: formData.phone,
+        },
+        theme: {
+          color: "#1a3b5d",
+        },
+        modal: {
+          ondismiss: () => {
+            setIsProcessing(false);
+          }
         }
-      }
-    };
-    
-    const razorpay = new (window as any).Razorpay(options);
-    razorpay.on('payment.failed', function (response: any){
-      alert(`Payment failed: ${response.error.description}`);
-      console.error(response.error);
+      };
+      
+      const razorpay = new (window as any).Razorpay(options);
+      razorpay.on('payment.failed', function (response: any){
+        alert(`Payment failed: ${response.error.description}`);
+        setIsProcessing(false);
+      });
+      razorpay.open();
+    } catch (error) {
+      alert('Failed to create order');
       setIsProcessing(false);
-    });
-    razorpay.open();
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {

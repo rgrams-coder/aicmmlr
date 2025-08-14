@@ -9,6 +9,7 @@ import CheckCircleIcon from './icons/CheckCircleIcon';
 interface LandingPageProps {
   onGetStarted: () => void;
   onLoginClick: () => void;
+  onContactSubmit: (formData: { name: string; email: string; message: string }) => void;
 }
 
 interface LandingPageHandles {
@@ -16,7 +17,7 @@ interface LandingPageHandles {
   faqRef: React.RefObject<HTMLDivElement>;
 }
 
-const LandingPage = forwardRef<LandingPageHandles, LandingPageProps>(({ onGetStarted, onLoginClick }, ref) => {
+const LandingPage = forwardRef<LandingPageHandles, LandingPageProps>(({ onGetStarted, onLoginClick, onContactSubmit }, ref) => {
   const internalRef = React.useRef<HTMLDivElement>(null);
   const { contactRef, faqRef } = (ref as React.RefObject<LandingPageHandles>)?.current || { contactRef: internalRef, faqRef: internalRef };
 
@@ -46,12 +47,16 @@ const LandingPage = forwardRef<LandingPageHandles, LandingPageProps>(({ onGetSta
     setContactForm({ ...contactForm, [e.target.name]: e.target.value });
   };
 
-  const handleContactSubmit = (e: React.FormEvent) => {
+  const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Here you would typically send the form data to a server
-    console.log('Contact form submitted:', contactForm);
-    alert('Thank you for your message! We will get back to you soon.');
-    setContactForm({ name: '', email: '', message: '' });
+    try {
+      const { apiService } = await import('../services/api');
+      await apiService.submitContact(contactForm);
+      alert('Thank you for your message! We will get back to you soon.');
+      setContactForm({ name: '', email: '', message: '' });
+    } catch (error) {
+      alert('Failed to send message. Please try again.');
+    }
   };
 
   const features = [
