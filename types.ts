@@ -1,6 +1,4 @@
 
-
-
 export enum UserCategory {
   MINERAL_DEALER = 'MINERAL_DEALER',
   LESSEE = 'LESSEE',
@@ -117,4 +115,12 @@ export interface Feedback {
   userName: string;
   userEmail: string;
   feedbackText: string;
+}
+
+export interface ContactMessage {
+  id: string;
+  date: string;
+  name: string;
+  email: string;
+  message: string;
 }

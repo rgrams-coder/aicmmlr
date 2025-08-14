@@ -2,6 +2,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { UserCategory, RegistrationFormData, ProfileData, UserData, ConsultancyCase, ConsultancyStatus, LibraryDocument, UserCategoryInfo, Feedback, ContactMessage } from './types';
 import { USER_CATEGORIES } from './constants';
+import { apiService } from './services/api';
 import LandingPage from './components/LandingPage';
 import LandingStep from './components/LandingStep';
 import LoginStep from './components/LoginStep';
@@ -28,6 +29,7 @@ const App: React.FC = () => {
 
   const [step, setStep] = useState<AppStep>('introduction');
   const [userData, setUserData] = useState<Partial<UserData>>({});
+  const [isLoading, setIsLoading] = useState(true);
   const [allUsers, setAllUsers] = useState<UserData[]>([]);
   const [consultancyCases, setConsultancyCases] = useState<ConsultancyCase[]>([]);
   const [libraryData, setLibraryData] = useState<LibraryDocument[]>([]);
@@ -35,138 +37,6 @@ const App: React.FC = () => {
   const [contactMessages, setContactMessages] = useState<ContactMessage[]>([]);
   const [isEditProfileModalOpen, setEditProfileModalOpen] = useState(false);
   const [isFeedbackModalOpen, setFeedbackModalOpen] = useState(false);
-  
-  // Initialize with data from API
-  useEffect(() => {
-    const fetchInitialData = async () => {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        // If no token, we're not logged in, so don't try to fetch data
-        console.log('No token found in localStorage, skipping API calls');
-        return;
-      }
-      
-      // Log token for debugging
-      console.log('Using token for API calls:', token);
-      
-      // Decode token to see what's inside (for debugging only)
-      try {
-        const tokenParts = token.split('.');
-        if (tokenParts.length === 3) {
-          const payload = JSON.parse(atob(tokenParts[1]));
-          console.log('Decoded token payload:', payload);
-          console.log('Token expiration:', new Date(payload.exp * 1000).toLocaleString());
-        }
-      } catch (error) {
-        console.error('Error decoding token:', error);
-      }
-      
-      try {
-        // Fetch user profile data first
-        console.log('Fetching profile data...');
-        try {
-          const profileResponse = await fetch('https://u6qodot0x3.execute-api.ap-south-1.amazonaws.com/profile', {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
-          
-          console.log('Profile response status:', profileResponse.status);
-          
-          if (profileResponse.ok) {
-            const profileData = await profileResponse.json();
-            console.log('Profile data fetched:', profileData);
-            // Update user data with profile information
-            setUserData(prevData => {
-              // Check if profileData exists and has _id before accessing it
-              const mongoId = profileData && profileData._id ? profileData._id : prevData.id;
-              return {
-                ...prevData,
-                ...profileData,
-                id: mongoId // MongoDB uses _id
-              };
-            });
-          } else {
-            const errorText = await profileResponse.text();
-            console.error(`Failed to fetch profile (${profileResponse.status}):`, errorText);
-            
-            // If profile fetch fails with 401, token might be invalid
-            if (profileResponse.status === 401) {
-              console.log('Authentication failed, clearing token and redirecting to login');
-              localStorage.removeItem('token');
-              setStep('login');
-              alert('Your session has expired. Please log in again.');
-              return; // Stop further API calls
-            }
-          }
-        } catch (error) {
-          console.error('Error fetching profile:', error);
-        }
-        
-        // Fetch library documents
-        const libraryResponse = await fetch('https://u6qodot0x3.execute-api.ap-south-1.amazonaws.com/documents', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        if (libraryResponse.ok) {
-          const libraryData = await libraryResponse.json();
-          setLibraryData(libraryData);
-        }
-        
-        // Fetch consultancy cases
-        const casesResponse = await fetch('https://u6qodot0x3.execute-api.ap-south-1.amazonaws.com/cases', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        if (casesResponse.ok) {
-          const casesData = await casesResponse.json();
-          setConsultancyCases(casesData);
-        }
-        
-        // Fetch feedback data (admin only)
-        if (userData?.role === 'admin') {
-          const feedbackResponse = await fetch('https://u6qodot0x3.execute-api.ap-south-1.amazonaws.com/feedback', {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
-          if (feedbackResponse.ok) {
-            const feedbackData = await feedbackResponse.json();
-            setFeedbacks(feedbackData);
-          }
-          
-          // Fetch contact messages (admin only)
-          const contactResponse = await fetch('https://u6qodot0x3.execute-api.ap-south-1.amazonaws.com/contacts', {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
-          if (contactResponse.ok) {
-            const contactData = await contactResponse.json();
-            setContactMessages(contactData);
-          }
-          
-          // Fetch user list (admin only)
-          const usersResponse = await fetch('https://u6qodot0x3.execute-api.ap-south-1.amazonaws.com/users', {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
-          if (usersResponse.ok) {
-            const usersData = await usersResponse.json();
-            setAllUsers(usersData);
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching initial data:', error);
-      }
-    };
-    
-    fetchInitialData();
-  }, [userData?.id]); // Only re-fetch when user ID changes
 
   const handleContactClick = useCallback(() => {
     if (step !== 'introduction') {
@@ -210,59 +80,22 @@ const App: React.FC = () => {
     setStep('landing');
   }, []);
 
-  const handleLoginSubmit = useCallback(async (email: string, password: string) => {
+  const handleLoginSubmit = useCallback(async (email: string, pass: string) => {
     try {
-      const response = await fetch('https://u6qodot0x3.execute-api.ap-south-1.amazonaws.com/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        alert(data.message || 'Login failed');
-        return;
-      }
-      
-      // Store token in localStorage for future API calls
-      localStorage.setItem('token', data.token);
-      console.log('Login successful, token stored:', data.token);
-      
-      // Check if user is admin
-      if (data.user && data.user.role === 'admin') {
-        // Make sure we have all user data
-        const userData = {
-          ...data.user,
-          id: data.user && data.user._id ? data.user._id : (data.user ? data.user.id : ''), // MongoDB uses _id
-          email: data.user.email || '',
-          role: data.user.role || '',
-          name: data.user.name || '',
-          hasActiveSubscription: data.user.hasActiveSubscription || false
-        };
-        console.log('Admin user data set:', userData);
-        setUserData(userData);
+      let response;
+      if (email.includes('admin')) {
+        response = await apiService.adminLogin(email, pass);
+        localStorage.setItem('token', response.token);
+        setUserData(response.admin);
         setStep('admin');
-        return;
+      } else {
+        response = await apiService.login(email, pass);
+        localStorage.setItem('token', response.token);
+        setUserData(response.user);
+        setStep('dashboard');
       }
-      
-      // Set user data and redirect to dashboard
-      const userData = {
-        ...data.user,
-        id: data.user && data.user._id ? data.user._id : (data.user ? data.user.id : ''), // MongoDB uses _id
-        email: data.user && data.user.email ? data.user.email : '',
-        role: data.user && data.user.role ? data.user.role : 'user',
-        name: data.user && data.user.name ? data.user.name : '',
-        hasActiveSubscription: data.user && data.user.hasActiveSubscription ? data.user.hasActiveSubscription : false
-      };
-      console.log('Regular user data set:', userData);
-      setUserData(userData);
-      setStep('dashboard');
     } catch (error) {
-      console.error('Login error:', error);
-      alert('An error occurred during login. Please try again.');
+      alert(error instanceof Error ? error.message : 'Login failed');
     }
   }, []);
 
@@ -273,51 +106,15 @@ const App: React.FC = () => {
 
   const handleRegistrationSubmit = useCallback(async (data: RegistrationFormData) => {
     try {
-      // Combine category with registration data
-      const registrationData = {
+      const response = await apiService.register({
         ...data,
         category: userData.category
-      };
-      
-      const response = await fetch('https://u6qodot0x3.execute-api.ap-south-1.amazonaws.com/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(registrationData),
       });
-      
-      const responseData = await response.json();
-      
-      if (!response.ok) {
-        alert(responseData.message || 'Registration failed');
-        return;
-      }
-      
-      // Store token if returned from backend
-      if (responseData.token) {
-        localStorage.setItem('token', responseData.token);
-        console.log('Registration successful, token stored:', responseData.token);
-      }
-      
-      // Since the backend doesn't return user data on registration,
-      // we'll use the form data and fetch the user profile after verification
-      const newUserData = {
-        ...userData,
-        email: data.email,
-        name: data.name,
-        phone: data.phone,
-        organization: data.organization,
-        category: userData.category,
-        // Generate a temporary ID until we get the real one from the backend
-        id: `temp-${Date.now()}`
-      };
-      
-      setUserData(newUserData);
+      localStorage.setItem('token', response.token);
+      setUserData(response.user);
       setStep('verification');
     } catch (error) {
-      console.error('Registration error:', error);
-      alert('An error occurred during registration. Please try again.');
+      alert(error instanceof Error ? error.message : 'Registration failed');
     }
   }, [userData.category]);
 
@@ -327,92 +124,13 @@ const App: React.FC = () => {
 
   const handleProfileSubmit = useCallback(async (data: ProfileData) => {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        console.error('No token found in localStorage');
-        alert('Authentication error. Please log in again.');
-        setStep('login');
-        return;
-      }
-      
-      console.log('Updating profile with data:', data);
-      console.log('Using token:', token);
-      
-      // Decode token to check expiration
-      try {
-        const tokenParts = token.split('.');
-        if (tokenParts.length === 3) {
-          const payload = JSON.parse(atob(tokenParts[1]));
-          console.log('Token payload for profile submit:', payload);
-          const expiration = new Date(payload.exp * 1000);
-          console.log('Token expiration:', expiration.toLocaleString());
-          
-          // Check if token is expired
-          if (expiration < new Date()) {
-            console.error('Token has expired');
-            localStorage.removeItem('token');
-            alert('Your session has expired. Please log in again.');
-            setStep('login');
-            return;
-          }
-        }
-      } catch (error) {
-        console.error('Error decoding token:', error);
-      }
-      
-      const response = await fetch('https://u6qodot0x3.execute-api.ap-south-1.amazonaws.com/profile', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(data),
-      });
-      
-      console.log('Profile update response status:', response.status);
-      
-      const responseData = await response.json();
-      console.log('Profile update response data:', responseData);
-      
-      if (!response.ok) {
-        console.error(`Profile update failed (${response.status}):`, responseData);
-        
-        if (response.status === 401) {
-          // Handle authentication failure
-          localStorage.removeItem('token');
-          alert(responseData.message || 'Your session has expired. Please log in again.');
-          setStep('login');
-          return;
-        }
-        
-        alert(responseData.message || 'Profile update failed');
-        
-        // If authentication failed, redirect to login
-        if (response.status === 401) {
-          console.log('Authentication failed during profile update, clearing token');
-          localStorage.removeItem('token');
-          setStep('login');
-          alert('Your session has expired. Please log in again.');
-        }
-        return;
-      }
-      
-      // Update user data with profile data and API response
-      // Ensure we're using the correct ID field (MongoDB uses _id)
-      const finalUserData = { 
-        ...userData, 
-        ...data, 
-        ...responseData,
-        id: responseData && responseData._id ? responseData._id : userData.id // Preserve ID mapping
-      } as UserData;
-      console.log('Profile updated, new user data:', finalUserData);
-      setUserData(finalUserData);
+      const response = await apiService.updateProfile(data);
+      setUserData(response.user);
       setStep('dashboard');
     } catch (error) {
-      console.error('Profile update error:', error);
-      alert('An error occurred while updating your profile. Please try again.');
+      alert(error instanceof Error ? error.message : 'Profile update failed');
     }
-  }, [userData]);
+  }, []);
   
   const handleBackToLanding = useCallback(() => {
       setUserData({});
@@ -437,211 +155,62 @@ const App: React.FC = () => {
     setStep('consultancy');
   }, []);
   
-  const handleNewConsultancySubmit = useCallback(async (newCase: { issue: string; document: File | null }) => {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        alert('Authentication error. Please log in again.');
-        setStep('login');
-        return;
-      }
-      
-      // Create form data to handle file upload
-      const formData = new FormData();
-      formData.append('issue', newCase.issue);
-      if (newCase.document) {
-        formData.append('document', newCase.document);
-      }
-      
-      const response = await fetch('https://u6qodot0x3.execute-api.ap-south-1.amazonaws.com/cases', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData,
-      });
-      
-      const responseData = await response.json();
-      
-      if (!response.ok) {
-        alert(responseData.message || 'Failed to submit case');
-        return;
-      }
-      
-      // Add the new case to the state
-      setConsultancyCases(prev => [responseData, ...prev]);
-      alert('Your case has been submitted successfully!');
-    } catch (error) {
-      console.error('Case submission error:', error);
-      alert('An error occurred while submitting your case. Please try again.');
-    }
-  }, []);
+  const handleNewConsultancySubmit = useCallback((newCase: { issue: string; document: File | null }) => {
+    const caseId = `CASE-${Date.now().toString().slice(-6)}`;
+    const currentUser = userData as UserData;
 
-  const handlePaymentForCase = useCallback(async (caseId: string) => {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        alert('Authentication error. Please log in again.');
-        setStep('login');
-        return;
-      }
-      
-      // First, create a payment order
-      const orderResponse = await fetch(`https://u6qodot0x3.execute-api.ap-south-1.amazonaws.com/payments/create-order/${caseId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      const orderData = await orderResponse.json();
-      
-      if (!orderResponse.ok) {
-        alert(orderData.message || 'Failed to create payment order');
-        return;
-      }
-      
-      // Get the case to display payment details
-      const caseToPayFor = consultancyCases.find(c => c.id === caseId);
-      if (!caseToPayFor) {
-        alert('Case not found');
-        return;
-      }
-      
-      // Configure Razorpay payment
-      const options = {
-        key: 'rzp_test_VWCS3cXessJ8LA', // Should come from environment variables
-        amount: orderData.amount,
-        currency: orderData.currency,
-        name: "Mining Consultancy Service",
-        description: `Payment for case: ${caseId}`,
-        order_id: orderData.id,
-        handler: async (response: any) => {
-          // Verify payment with backend
-          const verifyResponse = await fetch('https://u6qodot0x3.execute-api.ap-south-1.amazonaws.com/payments/verify', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_signature: response.razorpay_signature,
-              case_id: caseId
-            }),
-          });
-          
-          const verifyData = await verifyResponse.json();
-          
-          if (!verifyResponse.ok) {
-            alert(verifyData.message || 'Payment verification failed');
-            return;
-          }
-          
-          // Update local state
-          setConsultancyCases(prev => prev.map(c =>
-            c.id === caseId ? { ...c, isPaid: true, status: ConsultancyStatus.COMPLETED } : c
-          ));
-          
-          alert('Payment successful! You can now access the solution.');
-        },
-        prefill: {
-          name: userData.name,
-          email: userData.email,
-          contact: userData.phone,
-        },
-        theme: {
-          color: "#1a3b5d",
-        },
-        modal: {
-          ondismiss: () => {
-            console.log('Razorpay payment modal dismissed');
-          }
-        }
-      };
-      
-      const razorpay = new (window as any).Razorpay(options);
-      razorpay.on('payment.failed', function (response: any){
-        alert(`Payment failed: ${response.error.description}`);
-        console.error(response.error);
-      });
-      razorpay.open();
-    } catch (error) {
-      console.error('Payment error:', error);
-      alert('An error occurred during payment processing. Please try again.');
-    }
-  }, [consultancyCases, userData]);
+    const newConsultancyCase: ConsultancyCase = {
+      id: caseId,
+      date: new Date().toISOString(),
+      issue: newCase.issue,
+      document: newCase.document,
+      documentName: newCase.document?.name || 'N/A',
+      status: ConsultancyStatus.PENDING,
+      isPaid: false,
+      userName: currentUser.name,
+      userEmail: currentUser.email,
+    };
+  
+    setConsultancyCases(prev => [newConsultancyCase, ...prev]);
+  }, [userData]);
+
+  const handlePaymentForCase = useCallback((caseId: string) => {
+      setConsultancyCases(prev => prev.map(c =>
+          c.id === caseId ? { ...c, isPaid: true, status: ConsultancyStatus.COMPLETED } : c
+      ));
+  }, []);
   
   const handleSubscribeToLibrary = useCallback(async () => {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        alert('Authentication error. Please log in again.');
-        setStep('login');
-        return;
-      }
-      
-      // Get user category info for display purposes
-      const currentUser = userData as UserData;
-      const categoryInfo = USER_CATEGORIES.find(cat => cat.value === currentUser.category);
-      if (!categoryInfo) {
+    const currentUser = userData as UserData;
+    const categoryInfo = USER_CATEGORIES.find(cat => cat.value === currentUser.category);
+    if (!categoryInfo) {
         alert('Error: Could not find user category information.');
         return;
-      }
+    }
+
+    try {
+      const orderData = await apiService.createOrder(categoryInfo.subscriptionPrice);
       
-      // Create subscription order
-      const orderResponse = await fetch('https://u6qodot0x3.execute-api.ap-south-1.amazonaws.com/payments/create-subscription', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      const orderData = await orderResponse.json();
-      
-      if (!orderResponse.ok) {
-        alert(orderData.message || 'Failed to create subscription order');
-        return;
-      }
-      
-      // Configure Razorpay payment
       const options = {
-        key: 'rzp_test_VWCS3cXessJ8LA',
+        key: orderData.key,
         amount: orderData.amount,
         currency: orderData.currency,
+        order_id: orderData.orderId,
         name: "Mines and Minerals Laws - Library Subscription",
         description: `Annual subscription for ${categoryInfo.label}`,
-        order_id: orderData.id,
         handler: async (response: any) => {
-          // Verify payment with backend
-          const verifyResponse = await fetch('https://u6qodot0x3.execute-api.ap-south-1.amazonaws.com/payments/verify-subscription', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-              razorpay_payment_id: response.razorpay_payment_id,
+          try {
+            await apiService.verifyPayment({
               razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature
-            }),
-          });
-          
-          const verifyData = await verifyResponse.json();
-          
-          if (!verifyResponse.ok) {
-            alert(verifyData.message || 'Subscription verification failed');
-            return;
+            });
+            const updatedUser = await apiService.getProfile();
+            setUserData(updatedUser.user);
+            alert('Subscription successful! You now have full access to the Digital Library.');
+          } catch (error) {
+            alert('Payment verification failed');
           }
-          
-          // Update user data with subscription status
-          const updatedUserData = { ...currentUser, hasActiveSubscription: true };
-          setUserData(updatedUserData);
-          
-          alert('Subscription successful! You now have full access to the Digital Library.');
         },
         prefill: {
           name: currentUser.name,
@@ -650,149 +219,43 @@ const App: React.FC = () => {
         },
         theme: {
           color: "#1a3b5d",
-        },
-        modal: {
-          ondismiss: () => {
-            console.log('Razorpay modal dismissed for subscription.');
-          }
         }
       };
       
       const razorpay = new (window as any).Razorpay(options);
       razorpay.on('payment.failed', function (response: any){
         alert(`Payment failed: ${response.error.description}`);
-        console.error(response.error);
       });
       razorpay.open();
     } catch (error) {
-      console.error('Subscription error:', error);
-      alert('An error occurred during subscription processing. Please try again.');
+      alert('Failed to create subscription order');
     }
   }, [userData]);
 
-  const handleAddDocument = useCallback(async (doc: LibraryDocument, file: File | null) => {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        alert('Authentication error. Please log in again.');
-        setStep('login');
-        return;
-      }
-      
-      // Create form data for file upload
-      const formData = new FormData();
-      formData.append('type', doc.type);
-      formData.append('title', doc.title);
-      formData.append('description', doc.description);
-      if (doc.content) {
-        formData.append('content', doc.content);
-      }
-      if (file) {
-        formData.append('fileData', file);
-        formData.append('fileName', file.name);
-      }
-      
-      const response = await fetch('https://u6qodot0x3.execute-api.ap-south-1.amazonaws.com/documents', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData,
-      });
-      
-      const responseData = await response.json();
-      
-      if (!response.ok) {
-        alert(responseData.message || 'Failed to add document');
-        return;
-      }
-      
-      // Add the new document to the state
-      setLibraryData(prev => [responseData, ...prev]);
-      alert('Document added successfully!');
-    } catch (error) {
-      console.error('Document add error:', error);
-      alert('An error occurred while adding the document. Please try again.');
+  const handleAddDocument = useCallback((doc: LibraryDocument, file: File | null) => {
+    if (file) {
+      const fileUrl = URL.createObjectURL(file);
+      const newDoc = { ...doc, content: fileUrl };
+      setLibraryData(prev => [newDoc, ...prev]);
+    } else {
+      // Handle case where document is added without a file, if applicable
+      setLibraryData(prev => [doc, ...prev]);
     }
   }, []);
 
-  const handleUpdateDocument = useCallback(async (updatedDoc: LibraryDocument, file: File | null) => {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        alert('Authentication error. Please log in again.');
-        setStep('login');
-        return;
-      }
-      
-      // Create form data for file upload
-      const formData = new FormData();
-      formData.append('type', updatedDoc.type);
-      formData.append('title', updatedDoc.title);
-      formData.append('description', updatedDoc.description);
-      if (updatedDoc.content) {
-        formData.append('content', updatedDoc.content);
-      }
-      if (file) {
-        formData.append('fileData', file);
-        formData.append('fileName', file.name);
-      }
-      
-      const response = await fetch(`https://u6qodot0x3.execute-api.ap-south-1.amazonaws.com/documents/${updatedDoc.id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData,
-      });
-      
-      const responseData = await response.json();
-      
-      if (!response.ok) {
-        alert(responseData.message || 'Failed to update document');
-        return;
-      }
-      
-      // Update the document in the state
-      setLibraryData(prev => prev.map(doc => doc.id === responseData.id ? responseData : doc));
-      alert('Document updated successfully!');
-    } catch (error) {
-      console.error('Document update error:', error);
-      alert('An error occurred while updating the document. Please try again.');
+  const handleUpdateDocument = useCallback((updatedDoc: LibraryDocument, file: File | null) => {
+    if (file) {
+      const fileUrl = URL.createObjectURL(file);
+      const newDoc = { ...updatedDoc, content: fileUrl };
+      setLibraryData(prev => prev.map(doc => doc.id === newDoc.id ? newDoc : doc));
+    } else {
+      setLibraryData(prev => prev.map(doc => doc.id === updatedDoc.id ? updatedDoc : doc));
     }
   }, []);
 
-  const handleDeleteDocument = useCallback(async (docId: string) => {
+  const handleDeleteDocument = useCallback((docId: string) => {
     if (window.confirm('Are you sure you want to delete this document? This action cannot be undone.')) {
-      try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-          alert('Authentication error. Please log in again.');
-          setStep('login');
-          return;
-        }
-        
-        const response = await fetch(`https://u6qodot0x3.execute-api.ap-south-1.amazonaws.com/documents/${docId}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        
-        const responseData = await response.json();
-        
-        if (!response.ok) {
-          alert(responseData.message || 'Failed to delete document');
-          return;
-        }
-        
-        // Remove the document from the state
         setLibraryData(prev => prev.filter(doc => doc.id !== docId));
-        alert('Document deleted successfully!');
-      } catch (error) {
-        console.error('Document delete error:', error);
-        alert('An error occurred while deleting the document. Please try again.');
-      }
     }
   }, []);
   
@@ -825,215 +288,81 @@ const App: React.FC = () => {
     setFeedbackModalOpen(false);
   }, []);
 
-  const handleFeedbackSubmit = useCallback(async (feedbackText: string) => {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        alert('Authentication error. Please log in again.');
-        setStep('login');
-        return;
-      }
-      
-      const currentUser = userData as UserData;
-      const newFeedback: Feedback = {
-        id: `FDBK-${Date.now().toString().slice(-6)}`,
-        date: new Date().toISOString(),
-        userName: currentUser.name,
-        userEmail: currentUser.email,
-        feedbackText,
-      };
-      
-      const response = await fetch('https://u6qodot0x3.execute-api.ap-south-1.amazonaws.com/feedback', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(newFeedback),
-      });
-      
-      const responseData = await response.json();
-      
-      if (!response.ok) {
-        alert(responseData.message || 'Failed to submit feedback');
-        return;
-      }
-      
-      // Add the new feedback to the state
-      setFeedbacks(prev => [responseData, ...prev]);
-      setFeedbackModalOpen(false);
-      alert('Thank you for your feedback!');
-    } catch (error) {
-      console.error('Feedback submission error:', error);
-      alert('An error occurred while submitting your feedback. Please try again.');
-    }
+  const handleFeedbackSubmit = useCallback((feedbackText: string) => {
+    const currentUser = userData as UserData;
+    const newFeedback: Feedback = {
+      id: `FDBK-${Date.now().toString().slice(-6)}`,
+      date: new Date().toISOString(),
+      userName: currentUser.name,
+      userEmail: currentUser.email,
+      feedbackText,
+    };
+    setFeedbacks(prev => [newFeedback, ...prev]);
+    setFeedbackModalOpen(false);
+    alert('Thank you for your feedback!');
   }, [userData]);
 
-  const handleContactSubmit = useCallback(async (formData: { name: string; email: string; message: string }) => {
-    try {
-      const newContactMessage: ContactMessage = {
-        id: `MSG-${Date.now().toString().slice(-6)}`,
-        date: new Date().toISOString(),
-        ...formData,
-      };
-      
-      const response = await fetch('https://u6qodot0x3.execute-api.ap-south-1.amazonaws.com/contacts', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newContactMessage),
-      });
-      
-      const responseData = await response.json();
-      
-      if (!response.ok) {
-        alert(responseData.message || 'Failed to submit contact form');
-        return;
-      }
-      
-      // Add the new contact to the state
-      setContactMessages(prev => [responseData, ...prev]);
-      alert('Thank you for contacting us! We will get back to you soon.');
-    } catch (error) {
-      console.error('Contact submission error:', error);
-      alert('An error occurred while submitting your contact form. Please try again.');
-    }
+  const handleContactSubmit = useCallback((formData: { name: string; email: string; message: string }) => {
+    const newContactMessage: ContactMessage = {
+      id: `MSG-${Date.now().toString().slice(-6)}`,
+      date: new Date().toISOString(),
+      ...formData,
+    };
+    setContactMessages(prev => [newContactMessage, ...prev]);
   }, []);
 
-  const handleProfileUpdate = useCallback(async (updatedData: Partial<UserData>, newPassword?: string) => {
-    try {
+  // Check for existing token on app load
+  useEffect(() => {
+    const checkAuthState = async () => {
       const token = localStorage.getItem('token');
-      if (!token) {
-        console.error('No token found in localStorage');
-        alert('Authentication error. Please log in again.');
-        setStep('login');
-        return;
-      }
-      
-      // Log token for debugging
-      console.log('Using token for profile update:', token);
-      
-      // Decode token to check expiration
-      try {
-        const tokenParts = token.split('.');
-        if (tokenParts.length === 3) {
-          const payload = JSON.parse(atob(tokenParts[1]));
-          console.log('Token payload for profile update:', payload);
-          const expiration = new Date(payload.exp * 1000);
-          console.log('Token expiration:', expiration.toLocaleString());
-          
-          // Check if token is expired
-          if (expiration < new Date()) {
-            console.error('Token has expired');
-            localStorage.removeItem('token');
-            alert('Your session has expired. Please log in again.');
-            setStep('login');
-            return;
+      if (token) {
+        try {
+          const response = await apiService.getProfile();
+          setUserData(response.user);
+          if (response.user.role === 'admin') {
+            setStep('admin');
+          } else {
+            setStep('dashboard');
           }
-        }
-      } catch (error) {
-        console.error('Error decoding token:', error);
-      }
-      
-      // Include password in update data if provided
-      const updatePayload = newPassword 
-        ? { ...updatedData, password: newPassword }
-        : updatedData;
-      
-      console.log('Sending profile update with payload:', updatePayload);
-      
-      const response = await fetch('https://u6qodot0x3.execute-api.ap-south-1.amazonaws.com/profile', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(updatePayload),
-      });
-      
-      console.log('Profile update response status:', response.status);
-      
-      const responseData = await response.json();
-      console.log('Profile update response data:', responseData);
-      
-      if (!response.ok) {
-        console.error(`Profile update failed (${response.status}):`, responseData);
-        
-        if (response.status === 401) {
-          // Handle authentication failure
+        } catch (error) {
           localStorage.removeItem('token');
-          alert(responseData.message || 'Your session has expired. Please log in again.');
-          setStep('login');
-          return;
         }
-        
-        alert(responseData.message || 'Profile update failed');
-        return;
       }
-      
-      // Update local state with response data
-      setUserData(prev => ({ ...prev, ...responseData }));
-      
-      alert('Profile updated successfully!');
-      setEditProfileModalOpen(false);
-    } catch (error) {
-      console.error('Profile update error:', error);
-      alert('An error occurred while updating your profile. Please try again.');
-    }
+      setIsLoading(false);
+    };
+    
+    checkAuthState();
   }, []);
 
-  const handleAdminUpdateCase = useCallback(async (caseId: string, solution: string, fee: number, solutionFile: File | null) => {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        alert('Authentication error. Please log in again.');
-        setStep('login');
-        return;
-      }
-      
-      // Create form data for file upload
-      const formData = new FormData();
-      formData.append('solution', solution);
-      formData.append('fee', fee.toString());
-      formData.append('status', ConsultancyStatus.SOLUTION_READY);
-      if (solutionFile) {
-        formData.append('solutionFile', solutionFile);
-      }
-      
-      const response = await fetch(`https://u6qodot0x3.execute-api.ap-south-1.amazonaws.com/cases/${caseId}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData,
-      });
-      
-      const responseData = await response.json();
-      
-      if (!response.ok) {
-        alert(responseData.message || 'Failed to update case');
-        return;
-      }
-      
-      // Update the case in the state
-      setConsultancyCases(prev => prev.map(c => 
-        c.id === caseId 
-          ? { 
-              ...c, 
-              solution,
-              fee,
-              solutionDocument: solutionFile,
-              solutionDocumentName: solutionFile?.name || '',
-              status: ConsultancyStatus.SOLUTION_READY,
-            } 
-          : c
-      ));
-      alert('Case updated successfully!');
-    } catch (error) {
-      console.error('Admin case update error:', error);
-      alert('An error occurred while updating the case. Please try again.');
+  const handleProfileUpdate = useCallback((updatedData: Partial<UserData>, newPassword?: string) => {
+    setUserData(prev => ({ ...prev, ...updatedData }));
+    setAllUsers(prev => prev.map(u => u.email === userData.email ? { ...u, ...updatedData } : u));
+
+    if (newPassword) {
+      // In a real app, you'd make an API call to update the password.
+      // For this mock, we'll just log it.
+      console.log(`Password for ${userData.email} updated to: ${newPassword}`);
+      alert('Profile and password updated successfully!');
+    } else {
+      alert('Profile updated successfully!');
     }
+
+    setEditProfileModalOpen(false);
+  }, [userData.email]);
+
+  const handleAdminUpdateCase = useCallback((caseId: string, solution: string, fee: number, solutionFile: File | null) => {
+    setConsultancyCases(prev => prev.map(c => 
+      c.id === caseId 
+        ? { 
+            ...c, 
+            solution,
+            fee,
+            solutionDocument: solutionFile,
+            solutionDocumentName: solutionFile?.name || '',
+            status: ConsultancyStatus.SOLUTION_READY,
+          } 
+        : c
+    ));
   }, []);
 
 
@@ -1106,6 +435,17 @@ const App: React.FC = () => {
   const showNavbar = step !== 'admin';
   const isModalStep = modalSteps.includes(step);
   const isUserLoggedIn = !!userData.address;
+
+  if (isLoading) {
+    return (
+      <div className="bg-brand-light min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-dark mx-auto mb-4"></div>
+          <p className="text-brand-dark">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-brand-light min-h-screen flex flex-col">
