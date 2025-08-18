@@ -98,6 +98,8 @@ const Admin: React.FC<AdminProps> = ({ users: initialUsers, cases: initialCases,
     return (documents || []).filter(doc => doc.type === activeLibTab).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [documents, activeLibTab]);
 
+
+
   const handleOpenAddDocModal = () => {
     setEditingDoc(null);
     setIsDocModalOpen(true);
@@ -352,7 +354,7 @@ const Admin: React.FC<AdminProps> = ({ users: initialUsers, cases: initialCases,
                                             <button onClick={async () => {
                                               if (confirm('Are you sure you want to delete this document?')) {
                                                 try {
-                                                  await apiService.deleteDocument(doc.id);
+                                                  await apiService.deleteDocument(doc._id || doc.id);
                                                   const response = await apiService.getDocuments();
                                                   setDocuments(response.documents);
                                                 } catch (error) {

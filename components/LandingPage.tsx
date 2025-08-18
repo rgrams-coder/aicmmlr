@@ -31,7 +31,7 @@ const LandingPage = forwardRef<LandingPageHandles, LandingPageProps>(({ onGetSta
     },
     {
       question: 'Who can benefit from this platform?',
-      answer: 'Our platform is designed for a wide range of users, including mineral dealers, lessees, government officials, law firms, students, and researchers involved in the mining industry.',
+      answer: 'Our platform is designed for a wide range of users, including mineral dealers, lessees, law firms, students, and researchers involved in the mining industry.',
     },
     {
       question: 'Is there a free trial available?',
@@ -73,7 +73,7 @@ const LandingPage = forwardRef<LandingPageHandles, LandingPageProps>(({ onGetSta
     {
       icon: <UsersIcon className="h-10 w-10 text-brand-accent" />,
       title: 'Tailored For You',
-      description: 'Whether you\'re a mineral dealer, a student, or a government official, our platform provides features relevant to your role.',
+      description: 'Whether you\'re a mineral dealer, a student, or others, our platform provides features relevant to your role.',
     },
   ];
 
@@ -150,7 +150,7 @@ const LandingPage = forwardRef<LandingPageHandles, LandingPageProps>(({ onGetSta
                      <div className="flex flex-wrap justify-center gap-x-4 gap-y-2">
                         <span className="bg-brand-secondary text-white px-4 py-1 rounded-full text-sm font-semibold">Mineral Dealers</span>
                         <span className="bg-brand-secondary text-white px-4 py-1 rounded-full text-sm font-semibold">Lessees</span>
-                        <span className="bg-brand-secondary text-white px-4 py-1 rounded-full text-sm font-semibold">Government Officials</span>
+                        <span className="bg-brand-secondary text-white px-4 py-1 rounded-full text-sm font-semibold">Others </span>
                         <span className="bg-brand-secondary text-white px-4 py-1 rounded-full text-sm font-semibold">Firms & Companies</span>
                         <span className="bg-brand-accent text-brand-dark px-4 py-1 rounded-full text-sm font-semibold">Students</span>
                         <span className="bg-brand-accent text-brand-dark px-4 py-1 rounded-full text-sm font-semibold">Researchers</span>

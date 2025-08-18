@@ -27,7 +27,7 @@ const ProfileStep: React.FC<ProfileStepProps> = ({ userCategory, onSubmit }) => 
     licenceNo: '',
     dealerCodeIbm: '',
     natureOfBusiness: '',
-    department: '',
+    profession: '',
     designation: '',
     collegeName: '',
     universityName: '',
@@ -54,11 +54,11 @@ const ProfileStep: React.FC<ProfileStepProps> = ({ userCategory, onSubmit }) => 
   
   const isLeaseeType = [UserCategory.LESSEE, UserCategory.FIRM, UserCategory.COMPANY].includes(userCategory);
   const isDealerType = userCategory === UserCategory.MINERAL_DEALER;
-  const isGovernmentType = userCategory === UserCategory.GOVERNMENT_OFFICIAL;
+  const isOtherType = userCategory === UserCategory.OTHERS;
   const isAcademicType = [UserCategory.STUDENT, UserCategory.RESEARCHER].includes(userCategory);
   
   const isFormValid = useMemo(() => {
-    const { address, bio, state, district, circle, mauza, plotNo, area, revenueThanaNumber, thanaPs, minerals, natureOfLand, mineCodeIbm, mineCodeDgms, licenceNo, dealerCodeIbm, natureOfBusiness, department, designation, collegeName, universityName } = profileData;
+    const { address, bio, state, district, circle, mauza, plotNo, area, revenueThanaNumber, thanaPs, minerals, natureOfLand, mineCodeIbm, mineCodeDgms, licenceNo, dealerCodeIbm, natureOfBusiness, profession, designation, collegeName, universityName } = profileData;
     
     if (!address || !bio) return false;
 
@@ -68,14 +68,14 @@ const ProfileStep: React.FC<ProfileStepProps> = ({ userCategory, onSubmit }) => 
     if (isDealerType) {
       return !!(licenceNo && minerals && dealerCodeIbm && natureOfBusiness);
     }
-    if (isGovernmentType) {
-      return !!(department && designation);
+    if (isOtherType) {
+      return !!(profession && designation);
     }
     if (isAcademicType) {
       return !!(collegeName && universityName);
     }
     return false;
-  }, [profileData, isLeaseeType, isDealerType, isGovernmentType, isAcademicType]);
+  }, [profileData, isLeaseeType, isDealerType, isOtherType, isAcademicType]);
 
   const renderCategorySpecificFields = () => {
     if (isLeaseeType) {
@@ -112,12 +112,12 @@ const ProfileStep: React.FC<ProfileStepProps> = ({ userCategory, onSubmit }) => 
         </>
       );
     }
-    if (isGovernmentType) {
+    if (isOtherType) {
       return (
         <>
           <h3 className="text-lg font-medium text-gray-900 border-b pb-2 mb-4">Official Details</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <input type="text" name="department" placeholder="Department" value={profileData.department} onChange={handleChange} required className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-brand-secondary focus:border-brand-secondary"/>
+            <input type="text" name="profession" placeholder="Profession" value={profileData.profession} onChange={handleChange} required className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-brand-secondary focus:border-brand-secondary"/>
             <input type="text" name="designation" placeholder="Designation" value={profileData.designation} onChange={handleChange} required className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-brand-secondary focus:border-brand-secondary"/>
           </div>
         </>

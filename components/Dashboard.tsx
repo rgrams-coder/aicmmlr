@@ -27,12 +27,12 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onEnterLibrary, onEnter
   const renderCategoryDetails = () => {
     const isLeaseeType = [UserCategory.LESSEE, UserCategory.FIRM, UserCategory.COMPANY].includes(userData.category);
     const isDealerType = userData.category === UserCategory.MINERAL_DEALER;
-    const isGovernmentType = userData.category === UserCategory.GOVERNMENT_OFFICIAL;
+    const isOtherType = userData.category === UserCategory.OTHERS;
     const isAcademicType = [UserCategory.STUDENT, UserCategory.RESEARCHER].includes(userData.category);
 
     const detailItem = (label: string, value?: string) => value ? <p><strong className="text-gray-600">{label}:</strong> {value}</p> : null;
 
-    if (!isLeaseeType && !isDealerType && !isGovernmentType && !isAcademicType) {
+    if (!isLeaseeType && !isDealerType && !isOtherType && !isAcademicType) {
         return null;
     }
 
@@ -63,9 +63,9 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onEnterLibrary, onEnter
                     {detailItem('Nature of Business', userData.natureOfBusiness)}
                 </div>
             )}
-            {isGovernmentType && (
+            {isOtherType && (
                  <div className="space-y-1 text-sm">
-                    {detailItem('Department', userData.department)}
+                    {detailItem('Profession', userData.profession)}
                     {detailItem('Designation', userData.designation)}
                 </div>
             )}

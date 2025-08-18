@@ -115,7 +115,10 @@ const Library: React.FC<LibraryProps> = ({ documents: initialDocuments, onBackTo
             ) : (
             <ul className="space-y-4">
               {filteredDocuments.map(doc => (
-                 <li key={doc.id} onClick={() => setSelectedDoc(doc)} className="bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer border border-gray-200">
+                 <li key={doc.id} onClick={() => {
+                   console.log('Selected doc:', doc);
+                   setSelectedDoc(doc);
+                 }} className="bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer border border-gray-200">
                     <div className="flex items-start space-x-4">
                         <DocumentTextIcon className="h-8 w-8 text-brand-secondary flex-shrink-0 mt-1" />
                         <div>
@@ -142,19 +145,40 @@ const Library: React.FC<LibraryProps> = ({ documents: initialDocuments, onBackTo
 
       {selectedDoc && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50 animate-fade-in" aria-modal="true" role="dialog">
-            <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col">
+            <div className="bg-white rounded-xl shadow-2xl w-full h-[90vh] flex flex-col">
                 <header className="p-4 border-b flex justify-between items-center">
                     <h2 className="text-xl font-bold text-brand-dark">{selectedDoc.title}</h2>
                     <button onClick={() => setSelectedDoc(null)} className="text-gray-400 hover:text-gray-600">
                         <XCircleIcon className="h-7 w-7" />
                     </button>
                 </header>
-                <main className="p-6 overflow-y-auto" style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none' }}>
-                    <p className="text-gray-700 whitespace-pre-wrap">{selectedDoc.content}</p>
-                </main>
-                 <footer className="p-3 bg-gray-50 text-right text-xs text-gray-500 border-t">
-                    Content is for viewing only. Downloading and printing are disabled.
-                </footer>
+                <div className="flex flex-1 overflow-hidden">
+                    <div className="w-2/3 border-r">
+                        <div className="w-full h-full flex flex-col">
+                            <div className="p-2 bg-gray-100 text-sm border-b">
+                                {selectedDoc.presignedUrl ? (
+                                    <a href={selectedDoc.presignedUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                                        Open PDF in new tab
+                                    </a>
+                                ) : (
+                                    <span className="text-gray-600">Text Document</span>
+                                )}
+                            </div>
+                            <div className="flex-1 overflow-auto p-4">
+                                <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                                    {selectedDoc.content || 'No content available'}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="w-1/3 p-4">
+                        <h3 className="text-lg font-semibold mb-4">Notes</h3>
+                        <textarea
+                            className="w-full h-full resize-none border rounded p-3 focus:outline-none focus:ring-2 focus:ring-brand-accent"
+                            placeholder="Write your notes here..."
+                        />
+                    </div>
+                </div>
             </div>
         </div>
       )}
