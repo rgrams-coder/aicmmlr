@@ -123,13 +123,14 @@ class ApiService {
   async createDocument(data: any, file?: File) {
     if (file) {
       const formData = new FormData();
-      Object.keys(data).forEach(key => {
-        formData.append(key, data[key]);
-      });
+      formData.append('type', data.type);
+      formData.append('title', data.title);
+      formData.append('description', data.description);
+      formData.append('date', data.date);
       formData.append('file', file);
       
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE_URL}/documents`, {
+      const response = await fetch(`${API_BASE_URL}/documents/upload`, {
         method: 'POST',
         headers: {
           ...(token && { Authorization: `Bearer ${token}` })
@@ -139,7 +140,7 @@ class ApiService {
       
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || 'Request failed');
+        throw new Error(error.error || 'Upload failed');
       }
       
       return response.json();

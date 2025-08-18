@@ -2,7 +2,7 @@
 export enum UserCategory {
   MINERAL_DEALER = 'MINERAL_DEALER',
   LESSEE = 'LESSEE',
-  GOVERNMENT_OFFICIAL = 'GOVERNMENT_OFFICIAL',
+  OTHERS = 'OTHERS',
   FIRM = 'FIRM',
   COMPANY = 'COMPANY',
   STUDENT = 'STUDENT',
@@ -56,7 +56,7 @@ export interface ProfileData {
   natureOfBusiness?: string;
 
   // Government Official
-  department?: string;
+  profession?: string;
   designation?: string;
 
   // Student, Researcher
