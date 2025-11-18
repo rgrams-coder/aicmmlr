@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { UserData, UserType, UserCategory } from '../types';
 import { USER_CATEGORIES } from '../constants';
+import MiningCalculator from './MiningCalculator';
+import Notes from './Notes';
 
 interface DashboardProps {
   userData: UserData;
@@ -11,6 +13,11 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ userData, onEnterLibrary, onEnterConsultancy, onSubscribe, onEditProfile }) => {
+  const [showCalculator, setShowCalculator] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
+  const [trialDaysLeft, setTrialDaysLeft] = useState(0);
+  const [isTrialActive, setIsTrialActive] = useState(false);
+  const calculatorRef = useRef<HTMLDivElement>(null);
   const categoryInfo = USER_CATEGORIES.find(cat => cat.value === userData.category);
 
   if (!categoryInfo) {
@@ -22,7 +29,18 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onEnterLibrary, onEnter
       ? 'Connect with legal experts for personalized advice.'
       : 'Upgrade to a Premium account for access.';
 
-  const hasLibraryAccess = userData.hasActiveSubscription;
+  useEffect(() => {
+    // Calculate trial status
+    const trialStart = new Date(userData.trialStartDate || userData.createdAt);
+    const now = new Date();
+    const daysSinceStart = Math.floor((now.getTime() - trialStart.getTime()) / (1000 * 60 * 60 * 24));
+    const daysLeft = Math.max(0, 2 - daysSinceStart);
+    
+    setTrialDaysLeft(daysLeft);
+    setIsTrialActive(daysLeft > 0 && !userData.trialUsed);
+  }, [userData]);
+
+  const hasLibraryAccess = userData.hasActiveSubscription; // Library requires subscription only
   
   const renderCategoryDetails = () => {
     const isLeaseeType = [UserCategory.LESSEE, UserCategory.FIRM, UserCategory.COMPANY].includes(userData.category);
@@ -89,6 +107,13 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onEnterLibrary, onEnter
               <p className="text-brand-light mt-1">
                 Your role: <span className="font-semibold text-brand-accent">{categoryInfo.label}</span>
               </p>
+              {isTrialActive && (
+                <div className="mt-2">
+                  <span className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-medium">
+                    Trial Active: {trialDaysLeft} day{trialDaysLeft !== 1 ? 's' : ''} left
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </header>
@@ -131,15 +156,22 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onEnterLibrary, onEnter
                     <h4 className="font-bold text-brand-dark mb-2">Digital Library</h4>
                     {hasLibraryAccess ? (
                         <>
-                            <p className="text-sm text-green-700 font-semibold mb-4">✓ Subscribed</p>
-                            <p className="text-sm text-gray-600 mb-4">You have full access. Explore a vast collection of laws, articles, and case studies.</p>
+                            <p className="text-sm text-green-700 font-semibold mb-2">
+                              ✓ Subscribed
+                            </p>
+                            <p className="text-sm text-gray-600 mb-4">You have access. Explore a vast collection of laws, articles, and case studies.</p>
                             <button onClick={onEnterLibrary} className="w-full bg-brand-primary text-white py-2 rounded-md hover:bg-opacity-90 transition">
                                 Enter Library
                             </button>
                         </>
                     ) : (
                         <>
-                            <p className="text-sm text-gray-600 mb-2">Access an exhaustive collection of legal documents.</p>
+                            <p className="text-sm text-gray-600 mb-2">
+                              {isTrialActive 
+                                ? 'Library access requires subscription (not included in trial).'
+                                : 'Access an exhaustive collection of legal documents.'
+                              }
+                            </p>
                             <p className="text-sm text-brand-dark font-semibold mb-4">
                                 Annual Subscription: ₹{categoryInfo.subscriptionPrice.toLocaleString()}
                             </p>
@@ -164,10 +196,55 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onEnterLibrary, onEnter
                   </button>
                 </div>
               </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
+                  <h4 className="font-bold text-brand-dark mb-2">Rent,Royalty,Fees & other sum due to the Government Calculator</h4>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Calculate monthly mining sector demand.
+                  </p>
+                  <button
+                    onClick={() => {
+                      setShowCalculator(!showCalculator);
+                      if (!showCalculator) {
+                        setTimeout(() => {
+                          calculatorRef.current?.scrollIntoView({ behavior: 'smooth' });
+                        }, 100);
+                      }
+                    }}
+                    className="w-full bg-green-600 text-white py-2 rounded-md hover:bg-green-700 transition font-medium"
+                  >
+                    {showCalculator ? 'Hide Calculator' : 'Open Calculator'}
+                  </button>
+                </div>
+                
+                <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
+                  <h4 className="font-bold text-brand-dark mb-2">My Notes</h4>
+                  <p className="text-sm text-gray-600 mb-4">
+                    View your saved notes from the Digital Library.
+                  </p>
+                  <button
+                    onClick={() => setShowNotes(true)}
+                    className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition font-medium"
+                  >
+                    View Notes
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
+          
+          {showCalculator && (
+            <div ref={calculatorRef} className="mt-6">
+              <MiningCalculator />
+            </div>
+          )}
         </div>
       </div>
+      
+      {showNotes && (
+        <Notes onClose={() => setShowNotes(false)} />
+      )}
     </div>
   );
 };

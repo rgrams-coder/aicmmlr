@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { apiService } from '../services/api';
-import { UserData, ConsultancyCase, ConsultancyStatus, UserCategory, DocumentType, LibraryDocument, Feedback, ContactMessage } from '../types';
+import { UserData, ConsultancyCase, ConsultancyStatus, UserCategory, DocumentType, LibraryDocument, Feedback, ContactMessage, Mineral } from '../types';
 import { USER_CATEGORIES } from '../constants';
 import DocumentFormModal from './DocumentFormModal';
 import AdminCaseModal from './AdminCaseModal';
@@ -46,33 +46,78 @@ const DOC_TYPES_META = [
     { key: DocumentType.JUDGEMENT, label: 'Judgements' },
 ];
 
-const Admin: React.FC<AdminProps> = ({ users: initialUsers, cases: initialCases, documents: initialDocuments, feedbacks: initialFeedbacks, contactMessages: initialContactMessages, onLogout, onAddDocument, onUpdateDocument, onDeleteDocument, onUpdateCase }) => {
+const Admin: React.FC<AdminProps> = ({ users: initialUsers = [], cases: initialCases = [], documents: initialDocuments = [], feedbacks: initialFeedbacks = [], contactMessages: initialContactMessages = [], onLogout, onAddDocument, onUpdateDocument, onDeleteDocument, onUpdateCase }) => {
   const [users, setUsers] = useState<UserData[]>(initialUsers || []);
   const [cases, setCases] = useState<ConsultancyCase[]>(initialCases || []);
   const [documents, setDocuments] = useState<LibraryDocument[]>(initialDocuments || []);
   const [feedbacks, setFeedbacks] = useState<Feedback[]>(initialFeedbacks || []);
   const [contactMessages, setContactMessages] = useState<ContactMessage[]>(initialContactMessages || []);
+  const [minerals, setMinerals] = useState<Mineral[]>([]);
   const [visitorStats, setVisitorStats] = useState({ totalVisitors: 0, todayVisitors: 0, todayUsers: 0 });
   const [loading, setLoading] = useState(false);
+  const [mineralForm, setMineralForm] = useState({ name: '', quality: '', royaltyRate: '', salesPrice: '', unit: 'tonne' });
+  const [editingMineral, setEditingMineral] = useState<Mineral | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [usersRes, casesRes, docsRes, feedbackRes, contactRes, visitorRes] = await Promise.all([
-          apiService.getUsers(),
-          apiService.getCases(),
-          apiService.getDocuments(),
-          apiService.getFeedbacks(),
-          apiService.getContactMessages(),
-          apiService.getVisitorStats()
-        ]);
-        setUsers(usersRes.users);
-        setCases(casesRes.cases);
-        setDocuments(docsRes.documents);
-        setFeedbacks(feedbackRes.feedbacks);
-        setContactMessages(contactRes.contacts);
-        setVisitorStats(visitorRes);
+        // Fetch each endpoint individually with error handling
+        try {
+          const usersRes = await apiService.getUsers();
+          setUsers(usersRes.users || []);
+        } catch (error) {
+          console.error('Failed to fetch users:', error);
+          setUsers([]);
+        }
+        
+        try {
+          const casesRes = await apiService.getCases();
+          setCases(casesRes.cases || []);
+        } catch (error) {
+          console.error('Failed to fetch cases:', error);
+          setCases([]);
+        }
+        
+        try {
+          const docsRes = await apiService.getDocuments();
+          setDocuments(docsRes.documents || []);
+        } catch (error) {
+          console.error('Failed to fetch documents:', error);
+          setDocuments([]);
+        }
+        
+        try {
+          const feedbackRes = await apiService.getFeedbacks();
+          setFeedbacks(feedbackRes.feedbacks || []);
+        } catch (error) {
+          console.error('Failed to fetch feedbacks:', error);
+          setFeedbacks([]);
+        }
+        
+        try {
+          const contactRes = await apiService.getContactMessages();
+          setContactMessages(contactRes.contacts || []);
+        } catch (error) {
+          console.error('Failed to fetch contact messages:', error);
+          setContactMessages([]);
+        }
+        
+        try {
+          const visitorRes = await apiService.getVisitorStats();
+          setVisitorStats(visitorRes || { totalVisitors: 0, todayVisitors: 0, todayUsers: 0 });
+        } catch (error) {
+          console.error('Failed to fetch visitor stats:', error);
+          setVisitorStats({ totalVisitors: 0, todayVisitors: 0, todayUsers: 0 });
+        }
+        
+        try {
+          const mineralsRes = await apiService.getMinerals();
+          setMinerals(mineralsRes.minerals || []);
+        } catch (error) {
+          console.error('Failed to fetch minerals:', error);
+          setMinerals([]);
+        }
       } catch (error) {
         console.error('Failed to fetch admin data:', error);
       } finally {
@@ -93,6 +138,7 @@ const Admin: React.FC<AdminProps> = ({ users: initialUsers, cases: initialCases,
 
   const [selectedCase, setSelectedCase] = useState<ConsultancyCase | null>(null);
   const [isCaseModalOpen, setIsCaseModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const filteredDocs = useMemo(() => {
     return (documents || []).filter(doc => doc.type === activeLibTab).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -116,6 +162,9 @@ const Admin: React.FC<AdminProps> = ({ users: initialUsers, cases: initialCases,
   };
   
   const handleDocFormSubmit = async (doc: LibraryDocument, file: File | null) => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    
     try {
       if (editingDoc) {
         await apiService.updateDocument(doc.id, doc);
@@ -127,6 +176,8 @@ const Admin: React.FC<AdminProps> = ({ users: initialUsers, cases: initialCases,
       handleCloseDocModal();
     } catch (error) {
       alert('Failed to save document');
+    } finally {
+      setIsSubmitting(false);
     }
   };
   
@@ -213,6 +264,7 @@ const Admin: React.FC<AdminProps> = ({ users: initialUsers, cases: initialCases,
                 <button onClick={() => setActiveTab('users')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'users' ? 'border-brand-secondary text-brand-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}><UsersIcon className="h-5 w-5 mr-2 inline"/> Users</button>
                 <button onClick={() => setActiveTab('cases')} className={`ml-8 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'cases' ? 'border-brand-secondary text-brand-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}><BriefcaseIcon className="h-5 w-5 mr-2 inline"/> Consultancy</button>
                 <button onClick={() => setActiveTab('library')} className={`ml-8 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'library' ? 'border-brand-secondary text-brand-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}><DocumentTextIcon className="h-5 w-5 mr-2 inline"/> Library</button>
+                <button onClick={() => setActiveTab('minerals')} className={`ml-8 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'minerals' ? 'border-brand-secondary text-brand-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>⛏️ Minerals</button>
                 <button onClick={() => setActiveTab('feedback')} className={`ml-8 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'feedback' ? 'border-brand-secondary text-brand-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}><ChatBubbleLeftRightIcon className="h-5 w-5 mr-2 inline"/> Feedback</button>
                 <button onClick={() => setActiveTab('messages')} className={`ml-8 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'messages' ? 'border-brand-secondary text-brand-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}><ChatBubbleLeftRightIcon className="h-5 w-5 mr-2 inline"/> Messages</button>
               </div>
@@ -268,7 +320,9 @@ const Admin: React.FC<AdminProps> = ({ users: initialUsers, cases: initialCases,
                                 <tr>
                                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Case Info</th>
                                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Issue</th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Document</th>
                                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment</th>
                                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                                 </tr>
                             </thead>
@@ -281,9 +335,28 @@ const Admin: React.FC<AdminProps> = ({ users: initialUsers, cases: initialCases,
                                         </td>
                                         <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate" title={c.issue}>{c.issue}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            {c.document ? (
+                                                <a href={c.documentUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                                                    📎 {c.document}
+                                                </a>
+                                            ) : (
+                                                <span className="text-gray-400">No document</span>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                             <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusStyles[c.status]}`}>
                                                 {statusText[c.status]}
                                             </span>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            <div className={`text-xs font-medium ${c.isPaid ? 'text-green-600' : 'text-red-600'}`}>
+                                                {c.isPaid ? 'Paid' : 'Unpaid'}
+                                            </div>
+                                            {c.paymentRef && (
+                                                <div className="text-xs text-gray-400 truncate" title={c.paymentRef}>
+                                                    {c.paymentRef.substring(0, 12)}...
+                                                </div>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                             <button
@@ -297,7 +370,7 @@ const Admin: React.FC<AdminProps> = ({ users: initialUsers, cases: initialCases,
                                     </tr>
                                 ))}
                                 {cases.length === 0 && (
-                                    <tr><td colSpan={4} className="text-center py-8 text-gray-500">No cases submitted yet.</td></tr>
+                                    <tr><td colSpan={6} className="text-center py-8 text-gray-500">No cases submitted yet.</td></tr>
                                 )}
                             </tbody>
                         </table>
@@ -371,6 +444,167 @@ const Admin: React.FC<AdminProps> = ({ users: initialUsers, cases: initialCases,
                             </tbody>
                         </table>
                     </div>
+                </div>
+              )}
+              {activeTab === 'minerals' && (
+                <div className="bg-white p-6 rounded-lg shadow-md animate-fade-in">
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-2xl font-bold text-brand-dark">⛏️ Minerals Management ({minerals.length})</h2>
+                  </div>
+                  
+                  <div className="bg-gray-50 p-4 rounded-lg mb-6">
+                    <h3 className="text-lg font-semibold mb-4">{editingMineral ? 'Edit Mineral' : 'Add New Mineral'}</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                      <input
+                        type="text"
+                        placeholder="Mineral Name"
+                        value={mineralForm.name}
+                        onChange={(e) => setMineralForm({...mineralForm, name: e.target.value})}
+                        className="px-3 py-2 border rounded-md"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Quality"
+                        value={mineralForm.quality}
+                        onChange={(e) => setMineralForm({...mineralForm, quality: e.target.value})}
+                        className="px-3 py-2 border rounded-md"
+                      />
+                      <input
+                        type="number"
+                        placeholder="Royalty Rate"
+                        value={mineralForm.royaltyRate}
+                        onChange={(e) => setMineralForm({...mineralForm, royaltyRate: e.target.value})}
+                        className="px-3 py-2 border rounded-md"
+                      />
+                      <input
+                        type="number"
+                        placeholder="Sales Price"
+                        value={mineralForm.salesPrice}
+                        onChange={(e) => setMineralForm({...mineralForm, salesPrice: e.target.value})}
+                        className="px-3 py-2 border rounded-md"
+                      />
+                      <select
+                        value={mineralForm.unit}
+                        onChange={(e) => setMineralForm({...mineralForm, unit: e.target.value})}
+                        className="px-3 py-2 border rounded-md"
+                      >
+                        <option value="tonne">Tonne</option>
+                        <option value="cft">CFT</option>
+                        <option value="m3">M³</option>
+                      </select>
+                    </div>
+                    <div className="flex space-x-2 mt-4">
+                      <button
+                        onClick={async () => {
+                          if (!mineralForm.name || !mineralForm.quality || !mineralForm.royaltyRate || !mineralForm.salesPrice) {
+                            alert('Please fill all fields');
+                            return;
+                          }
+                          try {
+                            if (editingMineral) {
+                              await apiService.updateMineral(editingMineral._id, {
+                                name: mineralForm.name,
+                                quality: mineralForm.quality,
+                                royaltyRate: parseFloat(mineralForm.royaltyRate),
+                                salesPrice: parseFloat(mineralForm.salesPrice),
+                                unit: mineralForm.unit
+                              });
+                            } else {
+                              await apiService.createMineral({
+                                name: mineralForm.name,
+                                quality: mineralForm.quality,
+                                royaltyRate: parseFloat(mineralForm.royaltyRate),
+                                salesPrice: parseFloat(mineralForm.salesPrice),
+                                unit: mineralForm.unit
+                              });
+                            }
+                            const response = await apiService.getMinerals();
+                            setMinerals(response.minerals);
+                            setMineralForm({ name: '', quality: '', royaltyRate: '', salesPrice: '', unit: 'tonne' });
+                            setEditingMineral(null);
+                          } catch (error) {
+                            alert('Failed to save mineral');
+                          }
+                        }}
+                        className="bg-brand-secondary text-white px-4 py-2 rounded-md hover:bg-brand-primary"
+                      >
+                        {editingMineral ? 'Update' : 'Add'} Mineral
+                      </button>
+                      {editingMineral && (
+                        <button
+                          onClick={() => {
+                            setEditingMineral(null);
+                            setMineralForm({ name: '', quality: '', royaltyRate: '', salesPrice: '', unit: 'tonne' });
+                          }}
+                          className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600"
+                        >
+                          Cancel
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg overflow-hidden border border-gray-200 max-h-[60vh] overflow-y-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quality</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Royalty Rate</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sales Price</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unit</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {minerals.map(mineral => (
+                          <tr key={mineral._id}>
+                            <td className="px-6 py-4 text-sm font-medium text-gray-900">{mineral.name}</td>
+                            <td className="px-6 py-4 text-sm text-gray-500">{mineral.quality}</td>
+                            <td className="px-6 py-4 text-sm text-gray-500">₹{mineral.royaltyRate.toLocaleString()}</td>
+                            <td className="px-6 py-4 text-sm text-gray-500">₹{mineral.salesPrice.toLocaleString()}</td>
+                            <td className="px-6 py-4 text-sm text-gray-500">{mineral.unit}</td>
+                            <td className="px-6 py-4 text-sm font-medium space-x-2">
+                              <button
+                                onClick={() => {
+                                  setEditingMineral(mineral);
+                                  setMineralForm({
+                                    name: mineral.name,
+                                    quality: mineral.quality,
+                                    royaltyRate: mineral.royaltyRate.toString(),
+                                    salesPrice: mineral.salesPrice.toString(),
+                                    unit: mineral.unit
+                                  });
+                                }}
+                                className="text-blue-600 hover:text-blue-900 p-1 rounded-full hover:bg-gray-100"
+                              >
+                                <PencilIcon className="h-5 w-5"/>
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  if (confirm('Are you sure you want to delete this mineral?')) {
+                                    try {
+                                      await apiService.deleteMineral(mineral._id);
+                                      const response = await apiService.getMinerals();
+                                      setMinerals(response.minerals);
+                                    } catch (error) {
+                                      alert('Failed to delete mineral');
+                                    }
+                                  }
+                                }}
+                                className="text-red-600 hover:text-red-900 p-1 rounded-full hover:bg-gray-100"
+                              >
+                                <TrashIcon className="h-5 w-5"/>
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                        {minerals.length === 0 && (
+                          <tr><td colSpan={6} className="text-center py-8 text-gray-500">No minerals added yet.</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
               {activeTab === 'feedback' && (

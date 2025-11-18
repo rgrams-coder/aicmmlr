@@ -5,6 +5,9 @@ import BookOpenIcon from './icons/BookOpenIcon';
 import BriefcaseIcon from './icons/BriefcaseIcon';
 import UsersIcon from './icons/UsersIcon';
 import CheckCircleIcon from './icons/CheckCircleIcon';
+import PrivacyPolicy from './PrivacyPolicy';
+import TermsOfService from './TermsOfService';
+import RefundPolicy from './RefundPolicy';
 
 interface LandingPageProps {
   onGetStarted: () => void;
@@ -23,23 +26,50 @@ const LandingPage = forwardRef<LandingPageHandles, LandingPageProps>(({ onGetSta
 
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [contactForm, setContactForm] = useState({ name: '', email: '', message: '' });
+  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
+  const [showTermsOfService, setShowTermsOfService] = useState(false);
+  const [showRefundPolicy, setShowRefundPolicy] = useState(false);
 
   const faqData = [
     {
-      question: 'What is the Mines and Minerals Laws Ecosystem?',
-      answer: 'It is a comprehensive online platform providing access to a digital library of mining laws, expert legal consultancy, and compliance resources for professionals in the mines and minerals sector.',
+      question: 'What is the Mines and Minerals Law Ecosystem?',
+      answer: 'The Mines and Minerals Law Ecosystem is a comprehensive web platform designed to support students, researchers, government officials, mineral dealers, lessees, firms, and companies with curated resources, legal tools, and a digital library focused on mining and mineral laws.',
     },
     {
-      question: 'Who can benefit from this platform?',
-      answer: 'Our platform is designed for a wide range of users, including mineral dealers, lessees, law firms, students, and researchers involved in the mining industry.',
+      question: 'Who can register on this platform?',
+      answer: 'The following categories of users can register: Students, Researchers, Others (Govt/PSU), Mineral Dealers, Firms and Lessees, and Companies.',
     },
     {
-      question: 'Is there a free trial available?',
-      answer: 'Yes, we offer a free trial period that gives you limited access to our digital library. Premium features like expert consultancy require a subscription.',
+      question: 'What are the registration fees?',
+      answer: 'Registration is mandatory for accessing the services and is a one-time fee for maintaining the site: Students & Researchers: ₹1,000, Officials, Mineral Dealers, Firms & Lessees: ₹5,000, Companies: ₹15,000.',
     },
     {
-      question: 'How do I subscribe to premium features?',
-      answer: 'You can subscribe to our premium features through the dashboard after creating an account. We offer various subscription plans to suit your needs.',
+      question: 'What services are included with registration?',
+      answer: 'Registration gives access to: Legal updates and policy changes, Case law summaries, Regulatory guidance, Notifications and circulars. Note: Access to the digital Library requires an additional annual subscription.',
+    },
+    {
+      question: 'What are the charges for Library access?',
+      answer: 'The library contains premium materials such as full legal texts, analysis, archived documents, and exclusive research reports. Annual fees: Students: ₹5,000, Researchers: ₹7,000, Officials, Mineral Dealers, Firms & Lessees: ₹15,000, Companies: ₹25,000.',
+    },
+    {
+      question: 'Can I access the platform without paying the Library fee?',
+      answer: 'Yes. You can still benefit from several core features such as legal updates, forums, and basic guidance with only the registration fee. However, the library content is only accessible after subscribing to the respective annual library access plan.',
+    },
+    {
+      question: 'Is the payment secure?',
+      answer: 'Yes, we use secure payment gateways to ensure your transactions are protected.',
+    },
+    {
+      question: 'Can I upgrade my account or switch categories?',
+      answer: 'Yes, you can request an upgrade or switch category by contacting our support team. Additional fees may apply based on your new category.',
+    },
+    {
+      question: 'How do I get support if I face any issues?',
+      answer: 'You can reach our support team via Email: rajshekhar.it@gmail.com or Phone: +917091627631.',
+    },
+    {
+      question: 'Is there a refund policy?',
+      answer: 'Fees are non-refundable once paid, as we provide immediate access to digital services and resources. Please ensure you choose the correct category before registering.',
     },
   ];
 
@@ -114,7 +144,7 @@ const LandingPage = forwardRef<LandingPageHandles, LandingPageProps>(({ onGetSta
                 <div className="max-w-4xl mx-auto text-center">
                     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                         <p className="text-yellow-800 font-medium">
-                            Thank You for visiting the site. The site is under maintainance .
+                            Thank You for visiting the site. Currently, we are providing the service in relation to JMMC rules 2004 and rules connected therewith. Likely to be extended for other states. 
                         </p>
                     </div>
                 </div>
@@ -219,8 +249,18 @@ const LandingPage = forwardRef<LandingPageHandles, LandingPageProps>(({ onGetSta
         </main>
         
         <footer className="text-center py-6">
+            <div className="mb-4">
+                <div className="flex justify-center space-x-6 text-sm">
+                    <button onClick={() => setShowPrivacyPolicy(true)} className="text-brand-secondary hover:text-brand-primary transition-colors">Privacy Policy</button>
+                    <button onClick={() => setShowTermsOfService(true)} className="text-brand-secondary hover:text-brand-primary transition-colors">Terms of Service</button>
+                    <button onClick={() => setShowRefundPolicy(true)} className="text-brand-secondary hover:text-brand-primary transition-colors">Refund Policy</button>
+                </div>
+            </div>
             <p className="text-sm text-gray-500">&copy; {new Date().getFullYear()} Mines and Minerals Laws Ecosystem. All Rights Reserved.</p>
         </footer>
+        {showPrivacyPolicy && <PrivacyPolicy onClose={() => setShowPrivacyPolicy(false)} />}
+        {showTermsOfService && <TermsOfService onClose={() => setShowTermsOfService(false)} />}
+        {showRefundPolicy && <RefundPolicy onClose={() => setShowRefundPolicy(false)} />}
     </div>
   );
 });

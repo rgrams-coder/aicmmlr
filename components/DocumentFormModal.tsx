@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { LibraryDocument, DocumentType } from '../types';
 import XCircleIcon from './icons/XCircleIcon';
+import DocumentUpload from './DocumentUpload';
 
 const DOCUMENT_TYPES_META = [
     { key: DocumentType.BARE_ACT, label: 'Bare Act' },
@@ -81,93 +82,90 @@ const DocumentFormModal: React.FC<DocumentFormModalProps> = ({
             <XCircleIcon className="h-7 w-7" />
           </button>
         </header>
-        <form onSubmit={handleSubmit} className="flex-grow overflow-y-auto">
-          <main className="p-6 space-y-4">
-            <div>
-              <label htmlFor="type" className="block text-sm font-medium text-gray-700">Document Type</label>
-              <select
-                id="type"
-                name="type"
-                value={formData.type}
-                onChange={handleChange}
-                disabled
-                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 bg-gray-100 focus:outline-none focus:ring-brand-secondary focus:border-brand-secondary sm:text-sm rounded-md"
-              >
-                {DOCUMENT_TYPES_META.map(type => (
-                  <option key={type.key} value={type.key}>{type.label}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="title" className="block text-sm font-medium text-gray-700">Title</label>
-              <input
-                type="text"
-                id="title"
-                name="title"
-                value={formData.title}
-                onChange={handleChange}
-                required
-                className="mt-1 w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-brand-secondary focus:border-brand-secondary"
+        <div className="flex-grow overflow-y-auto">
+          <main className="p-6">
+            {documentToEdit ? (
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label htmlFor="type" className="block text-sm font-medium text-gray-700">Document Type</label>
+                  <select
+                    id="type"
+                    name="type"
+                    value={formData.type}
+                    onChange={handleChange}
+                    disabled
+                    className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 bg-gray-100 focus:outline-none focus:ring-brand-secondary focus:border-brand-secondary sm:text-sm rounded-md"
+                  >
+                    {DOCUMENT_TYPES_META.map(type => (
+                      <option key={type.key} value={type.key}>{type.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="title" className="block text-sm font-medium text-gray-700">Title</label>
+                  <input
+                    type="text"
+                    id="title"
+                    name="title"
+                    value={formData.title}
+                    onChange={handleChange}
+                    required
+                    className="mt-1 w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-brand-secondary focus:border-brand-secondary"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="date" className="block text-sm font-medium text-gray-700">Date</label>
+                  <input
+                    type="date"
+                    id="date"
+                    name="date"
+                    value={formData.date}
+                    onChange={handleChange}
+                    required
+                    className="mt-1 w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-brand-secondary focus:border-brand-secondary"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="description" className="block text-sm font-medium text-gray-700">Description</label>
+                  <textarea
+                    id="description"
+                    name="description"
+                    rows={3}
+                    value={formData.description}
+                    onChange={handleChange}
+                    required
+                    className="mt-1 w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-brand-secondary focus:border-brand-secondary"
+                  />
+                </div>
+                {formData.content && (
+                  <p className="text-sm text-gray-500">Current file: <a href={formData.content} target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline">{formData.content.split('/').pop()}</a></p>
+                )}
+                <div className="flex justify-end space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-secondary hover:bg-brand-primary"
+                  >
+                    Save Changes
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <DocumentUpload
+                initialType={initialType}
+                onFileUploaded={(doc) => {
+                  onClose();
+                }}
               />
-            </div>
-            <div>
-              <label htmlFor="date" className="block text-sm font-medium text-gray-700">Date</label>
-              <input
-                type="date"
-                id="date"
-                name="date"
-                value={formData.date}
-                onChange={handleChange}
-                required
-                className="mt-1 w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-brand-secondary focus:border-brand-secondary"
-              />
-            </div>
-            <div>
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700">Description</label>
-              <textarea
-                id="description"
-                name="description"
-                rows={3}
-                value={formData.description}
-                onChange={handleChange}
-                required
-                className="mt-1 w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-brand-secondary focus:border-brand-secondary"
-              />
-            </div>
-            <div>
-              <label htmlFor="content" className="block text-sm font-medium text-gray-700">Content</label>
-              <label htmlFor="file" className="block text-sm font-medium text-gray-700">PDF Document</label>
-              <input
-                type="file"
-                id="file"
-                name="file"
-                onChange={handleFileChange}
-                accept=".pdf"
-                required={!documentToEdit} // Only required for new documents
-                className="mt-1 w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-brand-secondary focus:border-brand-secondary"
-              />
-              {file && <p className="text-sm text-gray-500 mt-1">Selected: {file.name}</p>}
-              {documentToEdit && formData.content && (
-                <p className="text-sm text-gray-500 mt-1">Current file: <a href={formData.content} target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline">{formData.content.split('/').pop()}</a></p>
-              )}
-            </div>
+            )}
           </main>
-          <footer className="p-4 bg-gray-50 border-t flex justify-end space-x-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-secondary hover:bg-brand-primary"
-            >
-              {documentToEdit ? 'Save Changes' : 'Add Document'}
-            </button>
-          </footer>
-        </form>
+        </div>
       </div>
     </div>
   );

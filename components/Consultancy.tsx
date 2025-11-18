@@ -63,7 +63,11 @@ const Consultancy: React.FC<ConsultancyProps> = ({ cases: initialCases, userData
     if (!issue.trim()) return;
     setIsSubmitting(true);
     try {
-      await apiService.createCase({ issue });
+      const caseData: any = { issue };
+      if (document) {
+        caseData.document = document.name;
+      }
+      await apiService.createCaseWithDocument(caseData);
       const response = await apiService.getCases();
       setCases(response.cases);
       setIssue('');
@@ -76,44 +80,54 @@ const Consultancy: React.FC<ConsultancyProps> = ({ cases: initialCases, userData
     }
   };
   
-  const handlePayForSolution = (caseToPay: ConsultancyCase) => {
+  const handlePayForSolution = async (caseToPay: ConsultancyCase) => {
     if (!caseToPay.fee) {
         alert("Fee information is not available for this case.");
         return;
     }
 
-    const options = {
-        key: 'rzp_test_VWCS3cXessJ8LA',
-        amount: caseToPay.fee * 100, // Amount in paise
-        currency: "INR",
-        name: "Mines and Minerals - Consultancy Fee",
-        description: `Payment for case #${caseToPay.id}`,
-        handler: (response: any) => {
-            console.log('Case payment successful:', response);
-            onPay(caseToPay.id);
-            setSelectedCase(prev => prev ? { ...prev, isPaid: true, status: ConsultancyStatus.COMPLETED } : null);
-        },
-        prefill: {
-            name: userData.name,
-            email: userData.email,
-            contact: userData.phone,
-        },
-        theme: {
-            color: "#1a3b5d",
-        },
-        modal: {
-            ondismiss: () => {
-              console.log('Razorpay modal dismissed for case payment.');
+    try {
+        const orderResponse = await apiService.createOrder(caseToPay.fee);
+        
+        const options = {
+            key: orderResponse.key,
+            amount: orderResponse.amount,
+            currency: orderResponse.currency,
+            order_id: orderResponse.orderId,
+            name: "Mines and Minerals - Consultancy Fee",
+            description: `Payment for case #${caseToPay.id}`,
+            handler: async (response: any) => {
+                try {
+                    await apiService.verifyConsultancyPayment({
+                        razorpay_order_id: response.razorpay_order_id,
+                        razorpay_payment_id: response.razorpay_payment_id,
+                        razorpay_signature: response.razorpay_signature,
+                        caseId: caseToPay._id || caseToPay.id
+                    });
+                    
+                    const updatedCases = await apiService.getCases();
+                    setCases(updatedCases.cases);
+                    setSelectedCase(prev => prev ? { ...prev, isPaid: true } : null);
+                    onPay(caseToPay.id);
+                } catch (error) {
+                    alert('Payment verification failed');
+                }
+            },
+            prefill: {
+                name: userData.name,
+                email: userData.email,
+                contact: userData.phone,
+            },
+            theme: {
+                color: "#1a3b5d",
             }
-        }
-    };
+        };
 
-    const razorpay = new (window as any).Razorpay(options);
-    razorpay.on('payment.failed', function (response: any){
-        alert(`Payment failed: ${response.error.description}`);
-        console.error(response.error);
-    });
-    razorpay.open();
+        const razorpay = new (window as any).Razorpay(options);
+        razorpay.open();
+    } catch (error) {
+        alert('Failed to create payment order');
+    }
   };
 
   const handleViewDetails = (caseToShow: ConsultancyCase) => {
