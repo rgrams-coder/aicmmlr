@@ -88,9 +88,23 @@ class ApiService {
     });
   }
 
+  async verifyConsultancyPayment(paymentData: any) {
+    return this.request('/payment/verify-consultancy', {
+      method: 'POST',
+      body: JSON.stringify(paymentData)
+    });
+  }
+
   // Cases
   async createCase(caseData: any) {
     return this.request('/cases', {
+      method: 'POST',
+      body: JSON.stringify(caseData)
+    });
+  }
+
+  async createCaseWithDocument(caseData: any) {
+    return this.request('/cases/upload', {
       method: 'POST',
       body: JSON.stringify(caseData)
     });
@@ -211,6 +225,61 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify({ email })
     });
+  }
+
+  // Notes
+  async getNotes() {
+    return this.request('/notes');
+  }
+
+  async createNote(data: { title: string; content: string; documentId?: string }) {
+    return this.request('/notes', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async updateNote(id: string, data: { title: string; content: string }) {
+    return this.request(`/notes/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async deleteNote(id: string) {
+    return this.request(`/notes/${id}`, {
+      method: 'DELETE'
+    });
+  }
+
+  // Minerals
+  async getMinerals() {
+    return this.request('/minerals');
+  }
+
+  async createMineral(data: { name: string; quality: string; royaltyRate: number; salesPrice: number; unit: string }) {
+    return this.request('/minerals', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async updateMineral(id: string, data: { name: string; quality: string; royaltyRate: number; salesPrice: number; unit: string }) {
+    return this.request(`/minerals/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async deleteMineral(id: string) {
+    return this.request(`/minerals/${id}`, {
+      method: 'DELETE'
+    });
+  }
+
+  // Library Access
+  async checkLibraryAccess() {
+    return this.request('/library/access');
   }
 }
 
